@@ -27,7 +27,7 @@ test("exposes one MCP server with multiple provider-qualified catalogs", async (
     { id: "personal", catalog: personal, search: personal },
     { id: "external", catalog: external, search: external },
   ]);
-  const recipes = new RecipesService({ catalog: combined, search: combined, writer: personal, resolver: new UrlSource() });
+  const recipes = new RecipesService({ catalog: combined, search: combined, writer: personal, deleter: personal, resolver: new UrlSource() });
   const server = createRecipesMcpServer({
     recipes,
     providers: [
@@ -40,7 +40,7 @@ test("exposes one MCP server with multiple provider-qualified catalogs", async (
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
 
   try {
-    assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name), ["search_recipes", "get_recipe", "import_recipe"]);
+    assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name), ["search_recipes", "get_recipe", "import_recipe", "delete_recipe"]);
     const resources = await client.listResources();
     assert.ok(resources.resources.some((resource) => resource.uri === "recipes://personal"));
     assert.ok(resources.resources.every((resource) => resource.uri.startsWith("recipes://personal")));
@@ -91,6 +91,12 @@ test("exposes one MCP server with multiple provider-qualified catalogs", async (
     const importedContent = imported.content[0];
     assert.ok(importedContent && importedContent.type === "resource_link");
     assert.equal(importedContent.uri, "recipes://personal/spaghetti-carbonara");
+
+    const deleted = await client.callTool({ name: "delete_recipe", arguments: { id: "tomato-soup" } });
+    assert.equal(deleted.isError, undefined);
+    assert.deepEqual(deleted.structuredContent, { provider: "personal", id: "tomato-soup" });
+    assert.equal(await recipes.getRecipe({ provider: "personal", id: "tomato-soup" }), undefined);
+    assert.equal((await recipes.getRecipe({ provider: "external", id: "external-tomato" }))?.document.name, "External Tomato");
   } finally {
     await Promise.all([client.close(), server.close()]);
   }

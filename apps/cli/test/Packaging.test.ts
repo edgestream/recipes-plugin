@@ -50,6 +50,10 @@ test("runs the committed CLI bundle with an isolated personal data directory", a
     assert.equal(imported.stdout, "source\n");
     const searched = await execFileAsync(process.execPath, [fileURLToPath(cliBundleUrl), "search", "soup"], { env });
     assert.equal(searched.stdout, "recipes://personal/source: Bundle Soup\n");
+    const deleted = await execFileAsync(process.execPath, [fileURLToPath(cliBundleUrl), "delete", "source"], { env });
+    assert.equal(deleted.stdout, "source\n");
+    const listed = await execFileAsync(process.execPath, [fileURLToPath(cliBundleUrl), "list"], { env });
+    assert.equal(listed.stdout, "");
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

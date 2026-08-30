@@ -1,5 +1,7 @@
 import {
   RecipeConflictError,
+  RecipeNotFoundError,
+  UnsupportedRecipeCapabilityError,
   assertRecipeDocument,
   assertRecipeId,
   assertProviderId,
@@ -11,6 +13,7 @@ import {
   type Page,
   type RecipeCatalog,
   type RecipeDocument,
+  type RecipeDeleter,
   type RecipeRecord,
   type RecipeRef,
   type RecipeSearch,
@@ -19,13 +22,13 @@ import {
   type RequestContext,
   type SearchRecipesRequest,
 } from "@edgestream/recipes-core";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const defaultPageSize = 100;
 
 /** A read/write recipe catalog backed by directly editable `<id>.json` files. */
-export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter {
+export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, RecipeDeleter {
   readonly #directory: string;
   readonly #provider: string;
 
@@ -53,6 +56,20 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter {
       throw error;
     }
     return record(this.#provider, id, document, options);
+  }
+
+  async delete(ref: RecipeRef, context?: RequestContext): Promise<void> {
+    context?.signal?.throwIfAborted();
+    if (ref.provider !== this.#provider) {
+      throw new UnsupportedRecipeCapabilityError(`Recipe deletion is not available for provider ${ref.provider}.`);
+    }
+    assertRecipeId(ref.id);
+    try {
+      await unlink(this.#pathFor(ref.id));
+    } catch (error: unknown) {
+      if (isMissing(error)) throw new RecipeNotFoundError(`Recipe ${ref.provider}/${ref.id} was not found.`);
+      throw error;
+    }
   }
 
   async get(ref: RecipeRef, context?: RequestContext): Promise<RecipeRecord | undefined> {

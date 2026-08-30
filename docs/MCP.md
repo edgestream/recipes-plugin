@@ -19,6 +19,8 @@ The configured runtime exposes these tools:
   ID;
 - `import_recipe`: non-idempotent import from a path, file URI, HTTP URL, or HTTPS
   URL, with an optional stable personal ID.
+- `delete_recipe`: permanently delete one recipe by provider and provider-local ID
+  when the configured runtime supports deletion.
 
 The default runtime exposes:
 
@@ -31,7 +33,7 @@ leaving a large catalog non-enumerated. Search results are summary links; caller
 read the returned resource or call `get_recipe` for the complete document.
 
 Tools are registered from application capabilities. A read-only service without
-search or import must not advertise those tools.
+search, import, or deletion must not advertise those tools.
 
 ## URI rules
 
@@ -79,6 +81,10 @@ cursors.
 - `get_recipe` returns an MCP error result when the recipe is missing.
 - Reading a missing concrete resource raises a resource-read error.
 - Import is marked non-read-only and non-idempotent.
+- Deletion is marked non-read-only and destructive. A runtime without deletion
+  capability does not advertise `delete_recipe`.
+- Deletion for a provider not configured with a deleter returns an unsupported
+  capability error; deleting a missing owned recipe returns a not-found error.
 - Repeated automatic imports may receive suffixed IDs; an explicit conflicting ID
   is an error.
 - Provider, network, parsing, size, timeout, and storage errors remain observable;

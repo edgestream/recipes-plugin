@@ -1,5 +1,6 @@
 export type CliCommand =
   | { readonly type: "import"; readonly source: string; readonly id?: string }
+  | { readonly type: "delete"; readonly reference: string }
   | { readonly type: "list" }
   | { readonly type: "search"; readonly query: string }
   | { readonly type: "show"; readonly reference: string }
@@ -9,6 +10,9 @@ export function parseArguments(args: readonly string[]): CliCommand {
   const [command, ...rest] = args;
   switch (command) {
     case "import": return importCommand(rest);
+    case "delete":
+      if (rest.length !== 1) throw new Error("delete requires one recipe id or recipes: URI.");
+      return { type: "delete", reference: rest[0]! };
     case "list":
       if (rest.length > 0) throw new Error("list does not accept arguments.");
       return { type: "list" };
