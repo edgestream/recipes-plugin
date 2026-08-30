@@ -12,10 +12,8 @@ function parseRecipeJson(text: string): JsonObject {
 }
 
 function extractRecipeFromHtml(html: string): JsonObject {
-  const head = findElement(parse(html).childNodes, "head");
-  if (!head) throw new Error("HTML document has no head element.");
-  for (const script of head.childNodes) {
-    if (!isElement(script, "script") || attribute(script, "type")?.toLocaleLowerCase() !== "application/ld+json") continue;
+  for (const script of findElements(parse(html).childNodes, "script")) {
+    if (attribute(script, "type")?.toLocaleLowerCase() !== "application/ld+json") continue;
     try {
       const recipe = findRecipeJsonLdValue(JSON.parse(textContent(script)) as JsonValue);
       if (recipe) return recipe;
@@ -23,21 +21,19 @@ function extractRecipeFromHtml(html: string): JsonObject {
       if (!(error instanceof SyntaxError)) throw error;
     }
   }
-  throw new Error("HTML document head has no schema.org Recipe JSON-LD block.");
+  throw new Error("HTML document has no schema.org Recipe JSON-LD block.");
 }
 
-function findElement(
+function findElements(
   nodes: readonly DefaultTreeAdapterTypes.ChildNode[],
   tagName: string,
-): DefaultTreeAdapterTypes.Element | undefined {
+): DefaultTreeAdapterTypes.Element[] {
+  const elements: DefaultTreeAdapterTypes.Element[] = [];
   for (const node of nodes) {
-    if (isElement(node, tagName)) return node;
-    if (isHtmlElement(node)) {
-      const found = findElement(node.childNodes, tagName);
-      if (found) return found;
-    }
+    if (isElement(node, tagName)) elements.push(node);
+    if (isHtmlElement(node)) elements.push(...findElements(node.childNodes, tagName));
   }
-  return undefined;
+  return elements;
 }
 
 function isElement(
