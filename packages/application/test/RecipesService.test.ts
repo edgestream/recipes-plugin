@@ -15,6 +15,20 @@ test("uses read-only catalogs without requiring a writer", async () => {
     recipes.importRecipe({ source: sourceRef("https://example.test/recipe") }),
     /Recipe import is not available/u,
   );
+  await assert.rejects(
+    recipes.deleteRecipe(created.ref),
+    /Recipe deletion is not available/u,
+  );
+});
+
+test("deletes through a separately configured deleter", async () => {
+  const store = new MemoryStore();
+  const created = await store.create(recipe("Delete me"), { id: "delete-me" });
+  const recipes = new RecipesService({ catalog: store, deleter: store });
+
+  await recipes.deleteRecipe(created.ref);
+
+  assert.equal(await recipes.getRecipe(created.ref), undefined);
 });
 
 test("imports through separate resolver and writer ports", async () => {

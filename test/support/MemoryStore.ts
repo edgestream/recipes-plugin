@@ -1,5 +1,7 @@
 import {
   RecipeConflictError,
+  RecipeNotFoundError,
+  UnsupportedRecipeCapabilityError,
   assertRecipeDocument,
   assertRecipeId,
   cloneJson,
@@ -9,6 +11,7 @@ import {
   type Page,
   type RecipeCatalog,
   type RecipeDocument,
+  type RecipeDeleter,
   type RecipeRecord,
   type RecipeRef,
   type RecipeSearch,
@@ -19,7 +22,7 @@ import {
 } from "@edgestream/recipes-core";
 
 /** Test adapter used by application and protocol tests. */
-export class MemoryStore implements RecipeCatalog, RecipeSearch, RecipeWriter {
+export class MemoryStore implements RecipeCatalog, RecipeSearch, RecipeWriter, RecipeDeleter {
   readonly #records = new Map<string, RecipeRecord>();
 
   constructor(readonly provider = "personal") {}
@@ -32,6 +35,16 @@ export class MemoryStore implements RecipeCatalog, RecipeSearch, RecipeWriter {
     const record = recipeRecord(this.provider, id, normalizeRecipeDocument(recipe), options);
     this.#records.set(id, cloneRecord(record));
     return cloneRecord(record);
+  }
+
+  async delete(ref: RecipeRef, context?: RequestContext): Promise<void> {
+    context?.signal?.throwIfAborted();
+    if (ref.provider !== this.provider) {
+      throw new UnsupportedRecipeCapabilityError(`Recipe deletion is not available for provider ${ref.provider}.`);
+    }
+    if (!this.#records.delete(ref.id)) {
+      throw new RecipeNotFoundError(`Recipe ${ref.provider}/${ref.id} was not found.`);
+    }
   }
 
   async get(ref: RecipeRef, context?: RequestContext): Promise<RecipeRecord | undefined> {

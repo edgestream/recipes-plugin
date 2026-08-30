@@ -26,6 +26,7 @@ test("performs a real stdio handshake with the bundled MCP server", async () => 
       "search_recipes",
       "get_recipe",
       "import_recipe",
+      "delete_recipe",
     ]);
     assert.equal((await client.listResources()).resources[0]?.uri, "recipes://personal");
   } finally {

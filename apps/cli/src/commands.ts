@@ -18,6 +18,12 @@ export async function executeCommand(command: CliCommand, runtime: CliRuntime, o
       output.write(`${imported.ref.id}\n`);
       return 0;
     }
+    case "delete": {
+      const ref = recipeReference(command.reference, runtime.provider);
+      await runtime.recipes.deleteRecipe(ref);
+      output.write(`${ref.id}\n`);
+      return 0;
+    }
     case "list":
       await forEachPage((cursor) => runtime.recipes.listRecipes(pageRequest(cursor)), (item) => writeSummary(output, item));
       return 0;

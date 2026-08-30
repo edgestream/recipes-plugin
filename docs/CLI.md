@@ -10,12 +10,15 @@ stderr, and sets a meaningful exit code. It must not construct a store or source
 
 ```text
 recipes import <url-or-path> [--id <id>]
+recipes delete <id|recipes://provider/id>
 recipes list
 recipes search <query>
 recipes show <id|recipes://provider/id>
 ```
 
 - `import` prints the created provider-local ID.
+- `delete` permanently removes the selected recipe from a catalog that supports
+  deletion, then prints its provider-local ID.
 - `list` prints `id: name` for every recipe page.
 - `search` prints `recipes://provider/id: name` for every matching page, so results
   from different providers remain unambiguous.

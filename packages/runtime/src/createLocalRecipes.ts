@@ -23,6 +23,7 @@ export function createLocalRecipes(options: LocalRecipesOptions = {}): LocalReci
       catalog: store,
       search: store,
       writer: store,
+      deleter: store,
       resolver: new UrlSource(options.source),
     }),
   };

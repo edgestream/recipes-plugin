@@ -43,11 +43,13 @@ The core defines transport-neutral data and ports:
 - `RecipeCatalog` provides `get` and paged `list`.
 - `RecipeSearch` is an optional paged search capability.
 - `RecipeWriter` creates owned records.
+- `RecipeDeleter` removes owned records.
 - `RecipeResolver` resolves one import source.
 - `RecipeCollections` represents optional hierarchical navigation.
 
-Read, write, import, search, and collection navigation are separate capabilities.
-A read-only provider must never implement a fake writer.
+Read, creation, deletion, import, search, and collection navigation are separate
+capabilities. A read-only provider must never implement fake mutation
+capabilities.
 
 ### `packages/application`
 
@@ -57,7 +59,8 @@ A read-only provider must never implement a fake writer.
 - list recipes;
 - search recipes;
 - list collections when supported;
-- import through a resolver and writer when supported.
+- import through a resolver and writer when supported;
+- delete through a deleter when supported.
 
 The service exposes configured capabilities so frontends do not advertise
 unavailable operations. Application reference codecs translate between
@@ -65,7 +68,7 @@ provider-qualified references and public URIs.
 
 ### `packages/store-file`
 
-`FileStore` is the personal catalog and writer backed by JSON files. It owns file
+`FileStore` is the personal catalog, writer, and deleter backed by JSON files. It owns file
 layout and provider-local IDs, but it does not own MCP or CLI URI construction.
 
 ### `packages/source-url`
@@ -189,9 +192,11 @@ paging require an explicit product decision before being added.
 
 ## Scope and non-goals
 
-The current V1 is read-oriented plus import. Save, update, patch, synchronization,
-background indexing, permissions, result deduplication, partial provider failures,
-and cross-provider paging are outside scope until explicitly designed.
+The current V1 supports reading, importing, and deleting individual recipes where
+the configured catalog exposes those capabilities. Save, update, patch,
+synchronization, background indexing, permissions, result deduplication, partial
+provider failures, and cross-provider paging are outside scope until explicitly
+designed.
 
 MCP protocol federation is not the internal extension mechanism. See [MCP.md](MCP.md)
 for the boundary between provider packages, independent MCP servers, and MCP
