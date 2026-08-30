@@ -2,13 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { RecipesService } from "@edgestream/recipes-application";
+import { CombinedCatalog } from "@edgestream/recipes-runtime";
 import { UrlSource } from "@edgestream/recipes-source-url";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { MemoryStore } from "../../../test/support/MemoryStore.js";
 import { createRecipesMcpServer } from "../src/index.js";
 
-test("exposes personal resources through transport-neutral use cases", async () => {
-  const store = new MemoryStore();
+test("exposes one MCP server with multiple provider-qualified catalogs", async () => {
+  const personal = new MemoryStore();
+  const external = new MemoryStore("external");
   const recipe = {
     "@context": "https://schema.org",
     "@type": "Recipe",
@@ -17,50 +19,65 @@ test("exposes personal resources through transport-neutral use cases", async () 
     description: "A quick tomato pasta.",
     recipeIngredient: ["Tomatoes"],
   };
-  await store.create(recipe, { id: "tomato-pasta" });
-  await store.create({ ...recipe, url: "https://example.test/tomato-soup", name: "Tomato Soup" }, { id: "tomato-soup" });
-  await store.create({ ...recipe, url: "https://example.test/family", name: "Family Pasta" }, { id: "Family Pasta 100%" });
-  const recipes = new RecipesService({
-    catalog: store,
-    search: store,
-    writer: store,
-    resolver: new UrlSource(),
+  await personal.create(recipe, { id: "tomato-pasta" });
+  await personal.create({ ...recipe, url: "https://example.test/tomato-soup", name: "Tomato Soup" }, { id: "tomato-soup" });
+  await personal.create({ ...recipe, url: "https://example.test/family", name: "Family Pasta" }, { id: "Family Pasta 100%" });
+  await external.create({ ...recipe, url: "https://external.test/tomato", name: "External Tomato" }, { id: "external-tomato" });
+  const combined = new CombinedCatalog(personal, [
+    { id: "personal", catalog: personal, search: personal },
+    { id: "external", catalog: external, search: external },
+  ]);
+  const recipes = new RecipesService({ catalog: combined, search: combined, writer: personal, resolver: new UrlSource() });
+  const server = createRecipesMcpServer({
+    recipes,
+    providers: [
+      { id: "personal", title: "Personal recipes", enumerateResources: true },
+      { id: "external", title: "External recipes", enumerateResources: false },
+    ],
   });
-  const server = createRecipesMcpServer({ recipes });
   const client = new Client({ name: "recipes-test", version: "0.1.0" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
 
   try {
-    const tools = await client.listTools();
-    assert.deepEqual(tools.tools.map((tool) => tool.name), ["search_recipes", "get_recipe", "import_recipe"]);
-
+    assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name), ["search_recipes", "get_recipe", "import_recipe"]);
     const resources = await client.listResources();
-    assert.equal(resources.resources[0]?.uri, "recipes://personal");
-    assert.equal(resources.resources[0]?.title, "Personal recipe index");
-    const templates = await client.listResourceTemplates();
-    assert.equal(templates.resourceTemplates[0]?.uriTemplate, "recipes://personal/{id}");
+    assert.ok(resources.resources.some((resource) => resource.uri === "recipes://personal"));
+    assert.ok(resources.resources.every((resource) => resource.uri.startsWith("recipes://personal")));
+    assert.deepEqual((await client.listResourceTemplates()).resourceTemplates.map((template) => template.uriTemplate), [
+      "recipes://personal/{id}",
+      "recipes://external/{id}",
+    ]);
 
-    const firstSearchPage = await client.callTool({
-      name: "search_recipes",
-      arguments: { query: "tomato", limit: 1 },
-    });
-    assert.equal(firstSearchPage.content[0]?.type, "resource_link");
-    assert.equal(firstSearchPage.content[0]?.uri, "recipes://personal/tomato-pasta");
-    assert.deepEqual(firstSearchPage.structuredContent, {
-      results: [{
-        id: "tomato-pasta",
-        name: "Tomato Pasta",
-        description: "A quick tomato pasta.",
-        uri: "recipes://personal/tomato-pasta",
-      }],
-      nextCursor: "1",
+    const search = await client.callTool({ name: "search_recipes", arguments: { query: "tomato", limit: 1 } });
+    assert.deepEqual(search.structuredContent, {
+      results: [
+        {
+          provider: "personal",
+          id: "tomato-pasta",
+          name: "Tomato Pasta",
+          description: "A quick tomato pasta.",
+          uri: "recipes://personal/tomato-pasta",
+        },
+        {
+          provider: "external",
+          id: "external-tomato",
+          name: "External Tomato",
+          description: "A quick tomato pasta.",
+          uri: "recipes://external/external-tomato",
+        },
+      ],
+      nextCursor: null,
     });
 
-    const fetched = await client.readResource({ uri: "recipes://personal/tomato-pasta" });
+    const fetched = await client.readResource({ uri: "recipes://external/external-tomato" });
     const content = fetched.contents[0];
     assert.ok(content && "text" in content);
-    assert.deepEqual(JSON.parse(content.text), recipe);
+    assert.equal((JSON.parse(content.text) as { name?: unknown }).name, "External Tomato");
+
+    const viaTool = await client.callTool({ name: "get_recipe", arguments: { provider: "external", id: "external-tomato" } });
+    assert.equal(viaTool.isError, undefined);
+    assert.equal((viaTool.structuredContent as { provider?: unknown }).provider, "external");
 
     const encoded = await client.readResource({ uri: "recipes://personal/Family%20Pasta%20100%25" });
     const encodedContent = encoded.contents[0];
@@ -69,12 +86,11 @@ test("exposes personal resources through transport-neutral use cases", async () 
 
     const imported = await client.callTool({
       name: "import_recipe",
-      arguments: {
-        source: pathToFileURL(fileURLToPath(new URL("../../../examples/spaghetti-carbonara.json", import.meta.url))).href,
-      },
+      arguments: { source: pathToFileURL(fileURLToPath(new URL("../../../examples/spaghetti-carbonara.json", import.meta.url))).href },
     });
-    assert.equal(imported.content[0]?.type, "resource_link");
-    assert.equal(imported.content[0]?.uri, "recipes://personal/spaghetti-carbonara");
+    const importedContent = imported.content[0];
+    assert.ok(importedContent && importedContent.type === "resource_link");
+    assert.equal(importedContent.uri, "recipes://personal/spaghetti-carbonara");
   } finally {
     await Promise.all([client.close(), server.close()]);
   }

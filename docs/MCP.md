@@ -12,20 +12,22 @@ for MCP transport messages.
 
 ## V1 surface
 
-The configured personal runtime exposes these tools:
+The configured runtime exposes these tools:
 
 - `search_recipes`: paged free-text search returning recipe `ResourceLink` values;
-- `get_recipe`: complete schema.org Recipe retrieval by personal ID;
+- `get_recipe`: complete schema.org Recipe retrieval by provider and provider-local
+  ID;
 - `import_recipe`: non-idempotent import from a path, file URI, HTTP URL, or HTTPS
   URL, with an optional stable personal ID.
 
-The server exposes:
+The default runtime exposes:
 
 - static index resource `recipes://personal`;
 - recipe template `recipes://personal/{id}`.
 
-The complete collection is read through the static index resource. Search is not a
-substitute for listing the collection. A search result is a summary link; callers
+The complete collection is read through the static index resource. A runtime with
+additional providers may register further provider-qualified recipe templates while
+leaving a large catalog non-enumerated. Search results are summary links; callers
 read the returned resource or call `get_recipe` for the complete document.
 
 Tools are registered from application capabilities. A read-only service without
@@ -61,7 +63,8 @@ cursor is opaque to MCP and must not be converted to a global numeric offset.
 Search returns:
 
 - MCP `resource_link` content for navigation;
-- structured content with `id`, `uri`, `name`, `description`, and `nextCursor`.
+- structured content with `provider`, `id`, `uri`, `name`, `description`, and
+  `nextCursor`.
 
 `nextCursor` is `null` at the MCP boundary when no next page exists. Internally the
 core page omits `nextCursor`.

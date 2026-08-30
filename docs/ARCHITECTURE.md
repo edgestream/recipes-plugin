@@ -80,6 +80,11 @@ The runtime reads process configuration and constructs the concrete local
 application. Both executable frontends use the same runtime so environment and
 adapter behavior cannot drift.
 
+`CombinedCatalog` is a reusable runtime composition adapter for a known set of
+providers. It lists through one designated catalog, routes `get` by provider ID,
+and runs search in parallel. Its result order follows provider registration order;
+it intentionally has no compound cursor.
+
 ### `apps/cli` and `apps/mcp-server`
 
 The apps own only transport parsing, validation, presentation, and process startup.
@@ -118,8 +123,8 @@ Every catalog implementation must satisfy these rules:
 5. Missing records return `undefined`; conflicts use a typed conflict error.
 6. Callers may cancel local or remote work through `RequestContext.signal`.
 
-Reusable tests in `test/contracts/` enforce the common behavior. Future provider,
-database, and cache adapters must run the same contract suite.
+Reusable tests in `test/contracts/` enforce common store behavior. Future provider,
+database, and cache adapters must test the catalog capabilities they implement.
 
 ## Personal file collection
 
@@ -177,15 +182,16 @@ reference, and invalidation follows the wrapped provider or writer semantics.
 
 ### Aggregation
 
-Do not aggregate multiple providers until ordering, failure isolation, and compound
-cursor semantics are explicitly defined. A provider registry and an aggregated
-catalog are separate concerns.
+`CombinedCatalog` provides intentionally small in-process aggregation: it preserves
+provider-qualified references, uses registration order, and rejects cursors for
+combined search. Result deduplication, partial-failure policy, and cross-provider
+paging require an explicit product decision before being added.
 
 ## Scope and non-goals
 
 The current V1 is read-oriented plus import. Save, update, patch, synchronization,
-background indexing, permissions, and multi-provider aggregation are outside scope
-until explicitly designed.
+background indexing, permissions, result deduplication, partial provider failures,
+and cross-provider paging are outside scope until explicitly designed.
 
 MCP protocol federation is not the internal extension mechanism. See [MCP.md](MCP.md)
 for the boundary between provider packages, independent MCP servers, and MCP

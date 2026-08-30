@@ -4,12 +4,17 @@ import { recipeResult, summaryFromRecord } from "./presentation.js";
 import { cursorSchema, limitSchema, recipeIdSchema } from "./schemas.js";
 import { z } from "zod";
 
-export function registerRecipeTools(server: McpServer, recipes: RecipesService, provider: string): void {
+export function registerRecipeTools(server: McpServer, recipes: RecipesService, providers: readonly string[]): void {
+  const defaultProvider = providers[0] ?? "personal";
+  const providerSchema = z.string()
+    .refine((provider) => providers.includes(provider), `Provider must be one of: ${providers.join(", ")}.`)
+    .default(defaultProvider);
+
   if (recipes.capabilities.search) server.registerTool(
     "search_recipes",
     {
       title: "Search recipes",
-      description: "Search the personal recipe collection and return recipe resources.",
+      description: "Search the configured recipe providers and return provider-qualified recipe resources.",
       inputSchema: z.object({
         query: z.string().trim().min(1).describe("Words to find in recipe JSON-LD."),
         cursor: cursorSchema,
@@ -17,9 +22,9 @@ export function registerRecipeTools(server: McpServer, recipes: RecipesService, 
       }),
       annotations: { readOnlyHint: true },
     },
-    async ({ query, cursor, limit }) => {
+    async ({ query, cursor, limit }, context) => {
       const request = cursor === undefined ? { query, limit } : { query, cursor, limit };
-      const page = await recipes.searchRecipes(request);
+      const page = await recipes.searchRecipes(request, { signal: context.mcpReq.signal });
       const results = page.items.map(recipeResult);
       return {
         content: results.map(({ uri, name, description }) => ({
@@ -38,16 +43,16 @@ export function registerRecipeTools(server: McpServer, recipes: RecipesService, 
     "get_recipe",
     {
       title: "Get recipe",
-      description: "Retrieve a complete schema.org Recipe document by personal recipe id.",
-      inputSchema: z.object({ id: recipeIdSchema }),
+      description: "Retrieve a complete schema.org Recipe document by provider and provider-local id.",
+      inputSchema: z.object({ provider: providerSchema, id: recipeIdSchema }),
       annotations: { readOnlyHint: true },
     },
-    async ({ id }) => {
-      const recipe = await recipes.getRecipe({ provider, id });
-      if (!recipe) return { content: [{ type: "text" as const, text: `Recipe ${id} was not found.` }], isError: true };
+    async ({ provider, id }, context) => {
+      const recipe = await recipes.getRecipe({ provider, id }, { signal: context.mcpReq.signal });
+      if (!recipe) return { content: [{ type: "text" as const, text: `Recipe ${provider}/${id} was not found.` }], isError: true };
       return {
         content: [{ type: "text" as const, text: JSON.stringify(recipe.document) }],
-        structuredContent: { id, recipe: recipe.document },
+        structuredContent: { provider, id, recipe: recipe.document },
       };
     },
   );
@@ -63,9 +68,9 @@ export function registerRecipeTools(server: McpServer, recipes: RecipesService, 
       }),
       annotations: { readOnlyHint: false, idempotentHint: false },
     },
-    async ({ source, id }) => {
+    async ({ source, id }, context) => {
       const request = id === undefined ? { source: sourceRef(source) } : { source: sourceRef(source), id };
-      const imported = await recipes.importRecipe(request);
+      const imported = await recipes.importRecipe(request, { signal: context.mcpReq.signal });
       const result = recipeResult(summaryFromRecord(imported));
       return {
         content: [{

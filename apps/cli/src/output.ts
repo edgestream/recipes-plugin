@@ -1,3 +1,4 @@
+import { recipeUri } from "@edgestream/recipes-application";
 import type { RecipeDocument, RecipeSummary } from "@edgestream/recipes-core";
 
 export interface CliOutput {
@@ -6,6 +7,10 @@ export interface CliOutput {
 
 export function writeSummary(output: CliOutput, summary: RecipeSummary): void {
   output.write(`${summary.ref.id}: ${summary.name}\n`);
+}
+
+export function writeSearchResult(output: CliOutput, summary: RecipeSummary): void {
+  output.write(`${recipeUri(summary.ref)}: ${summary.name}\n`);
 }
 
 export function writeDocument(output: CliOutput, document: RecipeDocument): void {
