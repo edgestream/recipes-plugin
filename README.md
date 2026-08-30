@@ -21,7 +21,7 @@ Search through the collection
 
 ```bash
 $ npx recipes search Spaghetti
-spaghetti-carbonara: Spaghetti Carbonara with Guanciale and Pecorino
+recipes://personal/spaghetti-carbonara: Spaghetti Carbonara with Guanciale and Pecorino
 ```
 
 Show a complete recipe document

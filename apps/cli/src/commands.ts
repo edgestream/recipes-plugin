@@ -1,7 +1,7 @@
 import { parseRecipeUri, sourceRef, type RecipesService } from "@edgestream/recipes-application";
 import { assertRecipeId, type RecipeRef, type RecipeSummary } from "@edgestream/recipes-core";
 import type { CliCommand } from "./arguments.js";
-import { writeDocument, writeSummary, writeUsage, type CliOutput } from "./output.js";
+import { writeDocument, writeSearchResult, writeSummary, writeUsage, type CliOutput } from "./output.js";
 
 export interface CliRuntime {
   readonly recipes: RecipesService;
@@ -24,7 +24,7 @@ export async function executeCommand(command: CliCommand, runtime: CliRuntime, o
     case "search":
       await forEachPage(
         (cursor) => runtime.recipes.searchRecipes(searchRequest(command.query, cursor)),
-        (item) => writeSummary(output, item),
+        (item) => writeSearchResult(output, item),
       );
       return 0;
     case "show": {
@@ -40,7 +40,7 @@ export async function executeCommand(command: CliCommand, runtime: CliRuntime, o
 }
 
 function recipeReference(value: string, provider: string): RecipeRef {
-  if (value.startsWith("recipes://")) return parseRecipeUri(value, provider);
+  if (value.startsWith("recipes://")) return parseRecipeUri(value);
   assertRecipeId(value);
   return { provider, id: value };
 }

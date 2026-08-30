@@ -17,7 +17,8 @@ recipes show <id|recipes://provider/id>
 
 - `import` prints the created provider-local ID.
 - `list` prints `id: name` for every recipe page.
-- `search` prints `id: name` for every matching page.
+- `search` prints `recipes://provider/id: name` for every matching page, so results
+  from different providers remain unambiguous.
 - `show` prints the complete schema.org Recipe JSON document.
 - Invalid commands and arguments produce a diagnostic and non-zero exit code.
 
