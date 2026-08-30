@@ -51,6 +51,27 @@ test("extracts Recipe JSON-LD after an unrelated malformed block", async () => {
   }
 });
 
+test("extracts Recipe JSON-LD from the HTML body", async () => {
+  const server = createServer((_request, response) => {
+    response.setHeader("content-type", "text/html; charset=utf-8");
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">not-json</script>
+    </head><body>
+      <script type="application/ld+json">{"@context":"https://schema.org","@type":"Recipe","name":"Body recipe"}</script>
+    </body></html>`);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+
+  try {
+    const recipe = await new UrlSource().resolve({ value: `http://127.0.0.1:${address.port}/recipe` });
+    assert.equal(recipe?.document.name, "Body recipe");
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+  }
+});
+
 test("returns undefined when an HTTP recipe does not exist", async () => {
   const server = createServer((_request, response) => {
     response.statusCode = 404;
