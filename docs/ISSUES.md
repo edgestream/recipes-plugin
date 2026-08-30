@@ -48,6 +48,33 @@ Do not invent a reproduction, cause, or implementation approach. State unknowns
 explicitly. Do not duplicate metadata such as Type, Priority, or Effort in the
 description.
 
+## Pull request links
+
+A pull request that fully implements an issue must link to it in the pull
+request description as soon as the pull request is created. Add a standalone
+line using a supported closing keyword, for example:
+
+```text
+Closes #123
+```
+
+Use `Closes`, `Fixes`, or `Resolves` with the issue number. Do not use
+unsupported wording such as `Completes`. When the pull request targets the
+repository's default branch, this creates the bidirectional Development link
+while the pull request is still open and closes the linked issue when the pull
+request merges.
+
+Before merging, verify the relationship with:
+
+```bash
+gh pr view <number> --json closingIssuesReferences
+```
+
+If a pull request relates to an issue but must not close it, manually link the
+pull request and issue in GitHub's **Development** sidebar instead. Do this
+before merging; changing the description of an already merged pull request does
+not reliably create a retrospective Development link.
+
 ## API procedure
 
 The values in the issue sidebar are organization-level issue fields, not
