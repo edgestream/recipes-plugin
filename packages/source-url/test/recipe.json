@@ -1,0 +1,7 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "@id": "https://example.test/recipes/pasta-al-limone",
+  "name": "Pasta al Limone",
+  "recipeIngredient": ["Pasta", "Lemon"]
+}

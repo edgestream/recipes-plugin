@@ -1,0 +1,25 @@
+{
+  "name": "recipes-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "tsc -b && npm run bundle:mcp && npm run bundle:cli",
+    "bundle:mcp": "esbuild apps/mcp-server/src/main.ts --bundle --platform=node --target=node24 --format=esm --minify-whitespace --outfile=dist/recipes-mcp.mjs && node scripts/normalize-bundle.mjs dist/recipes-mcp.mjs",
+    "bundle:cli": "esbuild apps/cli/src/main.ts --bundle --platform=node --target=node24 --format=esm --minify-whitespace --outfile=dist/recipes-cli.mjs && node scripts/normalize-bundle.mjs dist/recipes-cli.mjs",
+    "check": "tsc -b --pretty false",
+    "test": "tsx --test packages/*/test/*.test.ts apps/*/test/*.test.ts test/contracts/*.test.ts",
+    "recipes": "node dist/recipes-cli.mjs",
+    "start:mcp": "tsx apps/mcp-server/src/main.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}

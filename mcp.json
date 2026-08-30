@@ -1,0 +1,15 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "recipes": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "./dist/recipes-mcp.mjs"
+      ],
+      "env": {
+        "RECIPES_DATA_DIRECTORY": "${PLUGIN_DATA}"
+      }
+    }
+  }
+}

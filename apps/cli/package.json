@@ -1,0 +1,12 @@
+{
+  "name": "@edgestream/recipes-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "recipes": "./dist/main.js" },
+  "dependencies": {
+    "@edgestream/recipes-application": "file:../../packages/application",
+    "@edgestream/recipes-core": "file:../../packages/core",
+    "@edgestream/recipes-runtime": "file:../../packages/runtime"
+  }
+}

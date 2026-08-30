@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@edgestream/recipes-core": ["./packages/core/src/index.ts"],
+      "@edgestream/recipes-application": ["./packages/application/src/index.ts"],
+      "@edgestream/recipes-source-url": ["./packages/source-url/src/index.ts"],
+      "@edgestream/recipes-store-file": ["./packages/store-file/src/index.ts"],
+      "@edgestream/recipes-runtime": ["./packages/runtime/src/index.ts"],
+      "@edgestream/recipes-mcp-server": ["./apps/mcp-server/src/index.ts"]
+    },
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "verbatimModuleSyntax": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "skipLibCheck": true,
+    "outDir": "./dist"
+  }
+}

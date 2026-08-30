@@ -1,0 +1,11 @@
+node_modules/
+dist/
+!dist/
+dist/*
+!dist/recipes-mcp.mjs
+!dist/recipes-cli.mjs
+packages/*/dist/
+apps/*/dist/
+packages/*/*.tsbuildinfo
+tsconfig.tsbuildinfo
+data/*.json

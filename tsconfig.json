@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": { "noEmit": true },
+  "include": ["packages/*/test/**/*.ts", "apps/*/test/**/*.ts", "test/**/*.ts"],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/application" },
+    { "path": "./packages/source-url" },
+    { "path": "./packages/store-file" },
+    { "path": "./packages/runtime" },
+    { "path": "./apps/cli" },
+    { "path": "./apps/mcp-server" }
+  ]
+}

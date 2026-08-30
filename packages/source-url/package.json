@@ -1,0 +1,13 @@
+{
+  "name": "@edgestream/recipes-source-url",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "peerDependencies": {
+    "@edgestream/recipes-core": "^0.1.0"
+  },
+  "dependencies": {
+    "parse5": "^8.0.1"
+  }
+}
