@@ -58,6 +58,13 @@ Documentation is part of the implementation, not a follow-up task.
   in the same change that closes it.
 - When code and documentation disagree, resolve the disagreement before pushing.
 
+## GitHub issues
+
+When creating or updating a GitHub issue, follow
+[docs/ISSUES.md](docs/ISSUES.md). Every issue must have a complete title and
+description plus verified Type, Priority, and Effort metadata. Do not claim
+metadata was set if the available GitHub credentials cannot write it.
+
 ## Implementation workflow
 
 1. Inspect the branch, worktree, and user-owned changes before editing.
