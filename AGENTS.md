@@ -65,6 +65,9 @@ When creating or updating a GitHub issue or pull request, follow
 description plus verified Type, Priority, and Effort metadata. Every pull
 request that implements an issue must be linked to it as documented there. Do
 not claim metadata was set if the available GitHub credentials cannot write it.
+When a pull request title uses a Conventional Commit prefix such as `feat:`,
+`fix:`, or `docs:`, begin the summary after the prefix with a lowercase letter;
+retain capitalization for proper names and acronyms.
 
 ## Implementation workflow
 
