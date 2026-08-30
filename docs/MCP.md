@@ -111,6 +111,9 @@ Two manifest pairs are maintained:
 - portable plugin manifests: `plugin.json` and `mcp.json`;
 - Codex plugin manifests: `.codex-plugin/plugin.json` and `.mcp.json`.
 
+See [PLUGIN.md](PLUGIN.md) for the two target specifications and their manifest
+responsibilities.
+
 Keep overlapping command, argument, environment, version, and identity values in
 sync. The installed runtime launches the committed self-contained bundle:
 
