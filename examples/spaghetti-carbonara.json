@@ -1,0 +1,145 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "@id": "https://github.com/edgestream/recipes-plugin/blob/main/examples/spaghetti-carbonara.json",
+  "mainEntityOfPage": "https://github.com/edgestream/recipes-plugin/blob/main/examples/spaghetti-carbonara.json",
+  "name": "Spaghetti Carbonara with Guanciale and Pecorino",
+  "alternateName": "Creamy Carbonara Without Cream",
+  "description": "A Roman-inspired pasta made with crisp guanciale, egg yolks, Pecorino, and starchy pasta water. The sauce is finished away from direct heat so it stays smooth and creamy.",
+  "abstract": "A fast pasta dish for two, made with a small number of bold ingredients.",
+  "inLanguage": "en",
+  "dateCreated": "2026-08-24",
+  "dateModified": "2026-08-24",
+  "author": {
+    "@type": "Organization",
+    "name": "Edgestream"
+  },
+  "copyrightHolder": {
+    "@type": "Organization",
+    "name": "Edgestream"
+  },
+  "copyrightYear": 2026,
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "isAccessibleForFree": true,
+  "accessMode": "textual",
+  "accessibilityFeature": [
+    "structuralNavigation",
+    "readingOrder"
+  ],
+  "accessibilityHazard": "none",
+  "accessibilitySummary": "The instructions are divided into named, numbered steps; quantities and times are included in the text.",
+  "keywords": [
+    "Pasta",
+    "Italian",
+    "quick",
+    "without cream",
+    "Guanciale",
+    "Pecorino"
+  ],
+  "recipeCategory": "Main course",
+  "recipeCuisine": "Italian",
+  "cookingMethod": "Boiling and residual-heat emulsification",
+  "recipeYield": {
+    "@type": "QuantitativeValue",
+    "value": 2,
+    "unitText": "servings"
+  },
+  "prepTime": "PT8M",
+  "cookTime": "PT12M",
+  "performTime": "PT12M",
+  "totalTime": "PT20M",
+  "estimatedCost": {
+    "@type": "MonetaryAmount",
+    "currency": "EUR",
+    "value": "6.50"
+  },
+  "nutrition": {
+    "@type": "NutritionInformation",
+    "servingSize": "1 serving",
+    "calories": "930 kcal",
+    "proteinContent": "37 g",
+    "fatContent": "50 g",
+    "saturatedFatContent": "19 g",
+    "carbohydrateContent": "82 g",
+    "sugarContent": "3 g",
+    "fiberContent": "4 g"
+  },
+  "recipeIngredient": [
+    "200 g spaghetti",
+    "75 g guanciale, cut into small cubes",
+    "3 very fresh egg yolks",
+    "55 g Pecorino Romano, finely grated",
+    "2 l water",
+    "20 g salt for the pasta water",
+    "freshly ground black pepper"
+  ],
+  "supply": [
+    {
+      "@type": "HowToSupply",
+      "name": "guanciale"
+    },
+    {
+      "@type": "HowToSupply",
+      "name": "spaghetti"
+    },
+    {
+      "@type": "HowToSupply",
+      "name": "egg yolks and Pecorino"
+    }
+  ],
+  "tool": [
+    {
+      "@type": "HowToTool",
+      "name": "large pot"
+    },
+    {
+      "@type": "HowToTool",
+      "name": "wide frying pan"
+    },
+    {
+      "@type": "HowToTool",
+      "name": "heatproof bowl"
+    },
+    {
+      "@type": "HowToTool",
+      "name": "tongs or pasta fork"
+    }
+  ],
+  "recipeInstructions": {
+    "@type": "ItemList",
+    "itemListOrder": "https://schema.org/ItemListOrderAscending",
+    "numberOfItems": 5,
+    "itemListElement": [
+      {
+        "@type": "HowToStep",
+        "position": 1,
+        "name": "Start the pasta water",
+        "text": "Bring the water to a boil in a large pot and salt it well. Cook the spaghetti until just shy of al dente; before draining, reserve about 250 ml of pasta water."
+      },
+      {
+        "@type": "HowToStep",
+        "position": 2,
+        "name": "Render the guanciale",
+        "text": "While the pasta cooks, place the guanciale in a cold frying pan and render it slowly over medium heat. Once the cubes are golden and crisp, take the pan off the heat."
+      },
+      {
+        "@type": "HowToStep",
+        "position": 3,
+        "name": "Make the egg and cheese paste",
+        "text": "Mix the egg yolks, Pecorino, and plenty of black pepper in a bowl to make a thick paste. Work in two tablespoons of warm pasta water to loosen it slightly."
+      },
+      {
+        "@type": "HowToStep",
+        "position": 4,
+        "name": "Emulsify the pasta",
+        "text": "Transfer the still-dripping spaghetti to the pan with the guanciale and toss it thoroughly in the rendered fat. Let the pan cool for two minutes. Add the egg and cheese paste, then keep the pasta and sauce moving. Add pasta water a little at a time until a glossy sauce lightly coats the strands."
+      },
+      {
+        "@type": "HowToStep",
+        "position": 5,
+        "name": "Serve immediately",
+        "text": "Divide the carbonara between warmed plates and finish with more Pecorino and black pepper. Serve at once, as the sauce thickens quickly when left to stand."
+      }
+    ]
+  }
+}

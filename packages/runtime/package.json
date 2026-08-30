@@ -1,0 +1,13 @@
+{
+  "name": "@edgestream/recipes-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "dependencies": {
+    "@edgestream/recipes-application": "file:../application",
+    "@edgestream/recipes-source-url": "file:../source-url",
+    "@edgestream/recipes-store-file": "file:../store-file"
+  }
+}

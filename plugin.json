@@ -1,0 +1,18 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "recipes-plugin-dev",
+  "version": "0.1.0",
+  "description": "Search and retrieve cooking recipes from your own collection and external sources",
+  "author": {
+    "name": "Edgestream"
+  },
+  "keywords": [
+    "recipes",
+    "cooking",
+    "recipe-search",
+    "recipe-book",
+    "mcp",
+    "schema-org",
+    "json-ld"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "name": "recipes-plugin-dev",
+  "version": "0.1.0",
+  "description": "Search and retrieve cooking recipes from your own collection and external sources",
+  "author": {
+    "name": "Edgestream"
+  },
+  "repository": "https://github.com/edgestream/recipes-plugin",
+  "keywords": [
+    "recipes",
+    "cooking",
+    "recipe-search",
+    "recipe-book",
+    "mcp",
+    "schema-org",
+    "json-ld"
+  ],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Recipes Dev",
+    "shortDescription": "Search and retrieve cooking recipes from your own collection and external sources",
+    "longDescription": "Find ideas for quick dinners, baking, vegetarian meals, and special occasions. Search by dish or ingredient, then open the complete recipe when you are ready to cook.",
+    "developerName": "Edgestream",
+    "category": "Lifestyle",
+    "capabilities": [
+      "Read"
+    ],
+    "defaultPrompt": [
+      "Import the recipe from https://raw.githubusercontent.com/edgestream/recipes-plugin/main/examples/spaghetti-carbonara.json.",
+      "List my personal recipes.",
+      "Search my personal recipes for spaghetti.",
+      "Show the spaghetti carbonara recipe."
+    ],
+    "brandColor": "#F97316"
+  }
+}
