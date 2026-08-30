@@ -60,10 +60,11 @@ Documentation is part of the implementation, not a follow-up task.
 
 ## GitHub issues
 
-When creating or updating a GitHub issue, follow
+When creating or updating a GitHub issue or pull request, follow
 [docs/ISSUES.md](docs/ISSUES.md). Every issue must have a complete title and
-description plus verified Type, Priority, and Effort metadata. Do not claim
-metadata was set if the available GitHub credentials cannot write it.
+description plus verified Type, Priority, and Effort metadata. Every pull
+request that implements an issue must be linked to it as documented there. Do
+not claim metadata was set if the available GitHub credentials cannot write it.
 
 ## Implementation workflow
 
