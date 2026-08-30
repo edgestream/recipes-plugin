@@ -10,6 +10,8 @@ Read the project documentation before changing code or public behavior:
   storage, provider, cache, database, or module-boundary change.
 - Read [docs/MCP.md](docs/MCP.md) for every MCP tool, resource, manifest,
   packaging, or runtime change.
+- Read [docs/PLUGIN.md](docs/PLUGIN.md) for every plugin manifest, plugin
+  packaging, install-surface metadata, or target-specification change.
 - Read [docs/CLI.md](docs/CLI.md) for every CLI command, option, output, exit-code,
   or local-runtime change.
 - Read `README.md` when changing end-user setup or examples.
@@ -44,6 +46,9 @@ Documentation is part of the implementation, not a follow-up task.
   identity, paging, provider, storage, cache, or database decisions change.
 - Update `docs/MCP.md` when MCP tools, resources, schemas, URIs, capabilities,
   errors, manifests, bundles, or protocol behavior change.
+- Update `docs/PLUGIN.md` when portable or Codex plugin manifests, their
+  compatibility contracts, install-surface metadata, or shared runtime settings
+  change.
 - Update `docs/CLI.md` when commands, arguments, output, configuration, URI
   handling, or exit behavior change.
 - Keep `README.md` concise and end-user-oriented. Link or route deeper knowledge
