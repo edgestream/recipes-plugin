@@ -7,6 +7,9 @@
     "packages/*",
     "apps/*"
   ],
+  "bin": {
+    "recipes": "./dist/recipes-cli.mjs"
+  },
   "scripts": {
     "build": "tsc -b && npm run bundle:mcp && npm run bundle:cli",
     "bundle:mcp": "esbuild apps/mcp-server/src/main.ts --bundle --platform=node --target=node24 --format=esm --minify-whitespace --outfile=dist/recipes-mcp.mjs && node scripts/normalize-bundle.mjs dist/recipes-mcp.mjs",

@@ -69,6 +69,11 @@ The committed self-contained CLI bundle is:
 dist/recipes-cli.mjs
 ```
 
+The root `package.json` maps the `recipes` executable directly to this committed
+bundle. This mapping ensures that `npx recipes` inside a repository checkout uses
+the local CLI instead of resolving the unrelated `recipes` package from the npm
+registry. Keep the root manifest and lockfile mapping synchronized.
+
 Rebuild it whenever CLI source, application behavior, runtime composition, runtime
 imports, dependencies, or bundle options change.
 
