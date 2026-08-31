@@ -143,6 +143,11 @@ sync. The installed runtime launches the committed self-contained bundle:
 node ./dist/recipes-mcp.mjs
 ```
 
+Both bundled MCP configurations intentionally omit `cwd`. Codex starts a
+plugin-provided stdio server from its installed plugin directory, so the relative
+bundle argument resolves there. Do not set `cwd` to `.` and do not rely on an
+undocumented `PLUGIN_ROOT` placeholder.
+
 `RECIPES_DATA_DIRECTORY` is set to `${PLUGIN_DATA}` in plugin manifests. They do
 not set `RECIPES_PROVIDERS`, so the runtime activates every provider known to its
 registry. This keeps the adapter and runtime provider-neutral. Personal data

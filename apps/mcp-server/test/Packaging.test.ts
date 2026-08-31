@@ -10,18 +10,32 @@ import { getDefaultEnvironment, StdioClientTransport } from "@modelcontextprotoc
 const bundle = fileURLToPath(new URL("../../../dist/recipes-mcp.mjs", import.meta.url));
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
-test("keeps the portable and Codex MCP environments synchronized", async () => {
+type PluginMcpManifest = {
+  mcpServers: {
+    recipes: {
+      command: string;
+      args: string[];
+      env: Record<string, string>;
+      cwd?: unknown;
+    };
+  };
+};
+
+test("keeps the portable and Codex MCP launch configuration synchronized", async () => {
   const portable = JSON.parse(await readFile(join(root, "mcp.json"), "utf8")) as {
-    mcpServers: { recipes: { env: Record<string, string> } };
+    mcpServers: PluginMcpManifest["mcpServers"];
   };
-  const codex = JSON.parse(await readFile(join(root, ".mcp.json"), "utf8")) as {
-    mcpServers: { recipes: { env: Record<string, string> } };
-  };
+  const codex = JSON.parse(await readFile(join(root, ".mcp.json"), "utf8")) as PluginMcpManifest;
 
   assert.deepEqual(portable.mcpServers.recipes.env, {
     RECIPES_DATA_DIRECTORY: "${PLUGIN_DATA}",
   });
   assert.deepEqual(codex.mcpServers.recipes.env, portable.mcpServers.recipes.env);
+  for (const manifest of [portable, codex]) {
+    assert.equal(manifest.mcpServers.recipes.command, "node");
+    assert.deepEqual(manifest.mcpServers.recipes.args, ["./dist/recipes-mcp.mjs"]);
+    assert.equal("cwd" in manifest.mcpServers.recipes, false);
+  }
 });
 
 test("performs a real stdio handshake with the bundled MCP server", async () => {

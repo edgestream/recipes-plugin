@@ -36,8 +36,11 @@ plugin root. All manifest paths are relative to that root and begin with `./`.
 ## Shared runtime and maintenance
 
 Both MCP configurations launch the committed `node ./dist/recipes-mcp.mjs`
-bundle, set `RECIPES_DATA_DIRECTORY` to `${PLUGIN_DATA}` so personal recipe
-data persists across plugin upgrades, and intentionally omit
+bundle without a `cwd` entry. Codex resolves the relative bundle argument from
+the installed plugin directory; do not set `cwd` to `.` or use an undocumented
+`${PLUGIN_ROOT}` placeholder. Both configurations set `RECIPES_DATA_DIRECTORY`
+to `${PLUGIN_DATA}` so personal recipe data persists across plugin upgrades, and
+intentionally omit
 `RECIPES_PROVIDERS`. An unset selection activates every provider known to the
 runtime registry, including Chefkoch. This is packaged runtime configuration; it
 does not introduce a provider dependency into MCP or CLI.

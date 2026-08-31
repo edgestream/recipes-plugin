@@ -5,7 +5,6 @@
       "args": [
         "./dist/recipes-mcp.mjs"
       ],
-      "cwd": ".",
       "env": {
         "RECIPES_DATA_DIRECTORY": "${PLUGIN_DATA}"
       }
