@@ -1,11 +1,15 @@
-import { sourceRef, type RecipesService } from "@edgestream/recipes-application";
+import { parseRecipeUri, sourceRef, type ImportRecipeRequest, type RecipesService } from "@edgestream/recipes-application";
 import { McpServer } from "@modelcontextprotocol/server";
 import { recipeResult, summaryFromRecord } from "./presentation.js";
 import { cursorSchema, limitSchema, recipeIdSchema } from "./schemas.js";
 import { z } from "zod";
 
-export function registerRecipeTools(server: McpServer, recipes: RecipesService, providers: readonly string[]): void {
-  const defaultProvider = providers[0] ?? "personal";
+export function registerRecipeTools(
+  server: McpServer,
+  recipes: RecipesService,
+  providers: readonly string[],
+  defaultProvider: string,
+): void {
   const providerSchema = z.string()
     .refine((provider) => providers.includes(provider), `Provider must be one of: ${providers.join(", ")}.`)
     .default(defaultProvider);
@@ -61,16 +65,15 @@ export function registerRecipeTools(server: McpServer, recipes: RecipesService, 
     "import_recipe",
     {
       title: "Import recipe",
-      description: "Import a schema.org Recipe JSON document from a file or HTTP(S) URL into the personal collection.",
+      description: "Import a recipe resource, file, or HTTP(S) URL into the personal collection.",
       inputSchema: z.object({
-        source: z.string().trim().min(1).describe("A file path, file: URL, or HTTP(S) URL to a recipe document."),
+        source: z.string().trim().min(1).describe("A recipes://provider/id URI, file path, file: URL, or HTTP(S) URL to a recipe document."),
         id: recipeIdSchema.optional().describe("Optional stable personal recipe id."),
       }),
       annotations: { readOnlyHint: false, idempotentHint: false },
     },
     async ({ source, id }, context) => {
-      const request = id === undefined ? { source: sourceRef(source) } : { source: sourceRef(source), id };
-      const imported = await recipes.importRecipe(request, { signal: context.mcpReq.signal });
+      const imported = await recipes.importRecipe(importRequest(source, id), { signal: context.mcpReq.signal });
       const result = recipeResult(summaryFromRecord(imported));
       return {
         content: [{
@@ -84,4 +87,11 @@ export function registerRecipeTools(server: McpServer, recipes: RecipesService, 
       };
     },
   );
+}
+
+function importRequest(value: string, id: string | undefined): ImportRecipeRequest {
+  const target = value.startsWith("recipes://")
+    ? { reference: parseRecipeUri(value) }
+    : { source: sourceRef(value) };
+  return id === undefined ? target : { ...target, id };
 }

@@ -1,7 +1,9 @@
-import { parseRecipeUri, sourceRef, type RecipesService } from "@edgestream/recipes-application";
+import { parseRecipeUri, sourceRef, type ImportRecipeRequest, type RecipesService } from "@edgestream/recipes-application";
 import { assertRecipeId, type RecipeRef, type RecipeSummary } from "@edgestream/recipes-core";
 import type { CliCommand } from "./arguments.js";
 import { writeDocument, writeSearchResult, writeSummary, writeUsage, type CliOutput } from "./output.js";
+
+const defaultSearchLimit = 20;
 
 export interface CliRuntime {
   readonly recipes: RecipesService;
@@ -11,22 +13,18 @@ export interface CliRuntime {
 export async function executeCommand(command: CliCommand, runtime: CliRuntime, output: CliOutput): Promise<number> {
   switch (command.type) {
     case "import": {
-      const request = command.id === undefined
-        ? { source: sourceRef(command.source) }
-        : { source: sourceRef(command.source), id: command.id };
-      const imported = await runtime.recipes.importRecipe(request);
+      const imported = await runtime.recipes.importRecipe(importRequest(command.source, command.id));
       output.write(`${imported.ref.id}\n`);
       return 0;
     }
     case "list":
       await forEachPage((cursor) => runtime.recipes.listRecipes(pageRequest(cursor)), (item) => writeSummary(output, item));
       return 0;
-    case "search":
-      await forEachPage(
-        (cursor) => runtime.recipes.searchRecipes(searchRequest(command.query, cursor)),
-        (item) => writeSearchResult(output, item),
-      );
+    case "search": {
+      const page = await runtime.recipes.searchRecipes(searchRequest(command.query));
+      page.items.forEach((item) => writeSearchResult(output, item));
       return 0;
+    }
     case "show": {
       const recipe = await runtime.recipes.getRecipe(recipeReference(command.reference, runtime.provider));
       if (!recipe) throw new Error(`recipe "${command.reference}" not found.`);
@@ -39,6 +37,13 @@ export async function executeCommand(command: CliCommand, runtime: CliRuntime, o
   }
 }
 
+function importRequest(value: string, id: string | undefined): ImportRecipeRequest {
+  const target = value.startsWith("recipes://")
+    ? { reference: parseRecipeUri(value) }
+    : { source: sourceRef(value) };
+  return id === undefined ? target : { ...target, id };
+}
+
 function recipeReference(value: string, provider: string): RecipeRef {
   if (value.startsWith("recipes://")) return parseRecipeUri(value);
   assertRecipeId(value);
@@ -49,8 +54,8 @@ function pageRequest(cursor: string | undefined) {
   return cursor === undefined ? { limit: 100 } : { cursor, limit: 100 };
 }
 
-function searchRequest(query: string, cursor: string | undefined) {
-  return cursor === undefined ? { query, limit: 100 } : { query, cursor, limit: 100 };
+function searchRequest(query: string) {
+  return { query, limit: defaultSearchLimit };
 }
 
 async function forEachPage(

@@ -9,6 +9,8 @@ export interface RecipeSummary {
   readonly ref: RecipeRef;
   readonly name: string;
   readonly description: string;
+  /** An optional direct source URL that supplements, but does not replace, the internal reference. */
+  readonly importSource?: SourceRef;
 }
 
 /** A stored or remotely resolved recipe together with its application identity. */

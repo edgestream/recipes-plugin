@@ -5,6 +5,7 @@
   "references": [
     { "path": "./packages/core" },
     { "path": "./packages/application" },
+    { "path": "./packages/provider-chefkoch" },
     { "path": "./packages/source-url" },
     { "path": "./packages/store-file" },
     { "path": "./packages/runtime" },

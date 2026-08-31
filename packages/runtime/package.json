@@ -8,6 +8,7 @@
   "dependencies": {
     "@edgestream/recipes-application": "file:../application",
     "@edgestream/recipes-core": "file:../core",
+    "@edgestream/recipes-provider-chefkoch": "file:../provider-chefkoch",
     "@edgestream/recipes-source-url": "file:../source-url",
     "@edgestream/recipes-store-file": "file:../store-file"
   }

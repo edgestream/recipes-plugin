@@ -2,12 +2,13 @@ import { recipeUri } from "@edgestream/recipes-application";
 import type { RecipeRecord, RecipeSummary } from "@edgestream/recipes-core";
 
 export function recipeMetadata(summary: RecipeSummary) {
-  return {
+  const metadata = {
     provider: summary.ref.provider,
     id: summary.ref.id,
     name: summary.name,
     description: summary.description,
   };
+  return summary.importSource === undefined ? metadata : { ...metadata, importSource: summary.importSource.value };
 }
 
 export function recipeResult(summary: RecipeSummary) {

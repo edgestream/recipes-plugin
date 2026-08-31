@@ -44,7 +44,11 @@ test("runs the committed CLI bundle with an isolated personal data directory", a
     name: "Bundle Soup",
     description: "A bundled smoke-test soup.",
   }));
-  const env = { ...process.env, RECIPES_DATA_DIRECTORY: join(directory, "data") };
+  const env = {
+    ...process.env,
+    RECIPES_DATA_DIRECTORY: join(directory, "data"),
+    RECIPES_PROVIDERS: "",
+  };
   try {
     const imported = await execFileAsync(process.execPath, [fileURLToPath(cliBundleUrl), "import", source], { env });
     assert.equal(imported.stdout, "source\n");

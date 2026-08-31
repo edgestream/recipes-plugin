@@ -26,10 +26,9 @@ export interface RecipesServiceOptions {
   readonly resolver?: RecipeResolver;
 }
 
-export interface ImportRecipeRequest {
-  readonly source: SourceRef;
-  readonly id?: string;
-}
+export type ImportRecipeRequest =
+  | { readonly source: SourceRef; readonly id?: string }
+  | { readonly reference: RecipeRef; readonly id?: string };
 
 export interface RecipesCapabilities {
   readonly search: boolean;
@@ -55,7 +54,7 @@ export class RecipesService {
     this.capabilities = Object.freeze({
       search: options.search !== undefined,
       collections: options.collections !== undefined,
-      import: options.writer !== undefined && options.resolver !== undefined,
+      import: options.writer !== undefined,
     });
   }
 
@@ -78,7 +77,16 @@ export class RecipesService {
   }
 
   async importRecipe(request: ImportRecipeRequest, context?: RequestContext): Promise<RecipeRecord> {
-    if (!this.#resolver || !this.#writer) throw new UnsupportedRecipeCapabilityError("Recipe import is not available.");
+    if (!this.#writer) throw new UnsupportedRecipeCapabilityError("Recipe import is not available.");
+    if ("reference" in request) {
+      const recipe = await this.#catalog.get(request.reference, context);
+      if (!recipe) throw new RecipeNotFoundError(`Recipe ${request.reference.provider}/${request.reference.id} was not found.`);
+      const options = recipe.provenance === undefined
+        ? request.id === undefined ? undefined : { id: request.id }
+        : request.id === undefined ? { provenance: recipe.provenance } : { id: request.id, provenance: recipe.provenance };
+      return this.#writer.create(recipe.document, options, context);
+    }
+    if (!this.#resolver) throw new UnsupportedRecipeCapabilityError("Recipe import from a source is not available.");
     const resolved = await this.#resolver.resolve(request.source, context);
     if (!resolved) throw new RecipeNotFoundError(`Recipe ${request.source.value} was not found.`);
     const options = request.id === undefined
