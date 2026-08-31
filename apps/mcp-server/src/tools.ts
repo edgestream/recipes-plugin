@@ -87,6 +87,23 @@ export function registerRecipeTools(
       };
     },
   );
+
+  if (recipes.capabilities.delete) server.registerTool(
+    "delete_recipe",
+    {
+      title: "Delete recipe",
+      description: "Permanently delete a recipe from a writable recipe catalog.",
+      inputSchema: z.object({ provider: providerSchema, id: recipeIdSchema }),
+      annotations: { readOnlyHint: false, destructiveHint: true },
+    },
+    async ({ provider, id }, context) => {
+      await recipes.deleteRecipe({ provider, id }, { signal: context.mcpReq.signal });
+      return {
+        content: [{ type: "text" as const, text: `Deleted recipe ${provider}/${id}.` }],
+        structuredContent: { provider, id },
+      };
+    },
+  );
 }
 
 function importRequest(value: string, id: string | undefined): ImportRecipeRequest {

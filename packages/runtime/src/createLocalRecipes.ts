@@ -43,6 +43,7 @@ export function createLocalRecipes(options: LocalRecipesOptions = {}): LocalReci
       catalog,
       search: catalog,
       writer: store,
+      deleter: store,
       resolver: source,
     }),
   };

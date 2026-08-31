@@ -20,6 +20,7 @@ export function writeDocument(output: CliOutput, document: RecipeDocument): void
 export function writeUsage(output: CliOutput): void {
   output.write("Usage:\n");
   output.write("  recipes import <url-or-path|recipes://provider/id> [--id <id>]\n");
+  output.write("  recipes delete <id|recipes://provider/id>\n");
   output.write("  recipes list\n");
   output.write("  recipes search <query>\n");
   output.write("  recipes show <id|recipes://provider/id>\n");

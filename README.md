@@ -37,6 +37,13 @@ $ npx recipes show spaghetti-carbonara
 }
 ```
 
+Delete a recipe you no longer want to keep
+
+```bash
+$ npx recipes delete spaghetti-carbonara
+spaghetti-carbonara
+```
+
 ## Development
 
 Install dependencies, type-check the workspace, and run the test suite

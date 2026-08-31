@@ -7,6 +7,7 @@ import {
   type Page,
   type RecipeCatalog,
   type RecipeCollections,
+  type RecipeDeleter,
   type RecipeRecord,
   type RecipeRef,
   type RecipeResolver,
@@ -23,6 +24,7 @@ export interface RecipesServiceOptions {
   readonly search?: RecipeSearch;
   readonly collections?: RecipeCollections;
   readonly writer?: RecipeWriter;
+  readonly deleter?: RecipeDeleter;
   readonly resolver?: RecipeResolver;
 }
 
@@ -34,6 +36,7 @@ export interface RecipesCapabilities {
   readonly search: boolean;
   readonly collections: boolean;
   readonly import: boolean;
+  readonly delete: boolean;
 }
 
 /** Transport-neutral recipe use cases shared by CLI, MCP, and future frontends. */
@@ -43,6 +46,7 @@ export class RecipesService {
   readonly #search: RecipeSearch | undefined;
   readonly #collections: RecipeCollections | undefined;
   readonly #writer: RecipeWriter | undefined;
+  readonly #deleter: RecipeDeleter | undefined;
   readonly #resolver: RecipeResolver | undefined;
 
   constructor(options: RecipesServiceOptions) {
@@ -50,11 +54,13 @@ export class RecipesService {
     this.#search = options.search;
     this.#collections = options.collections;
     this.#writer = options.writer;
+    this.#deleter = options.deleter;
     this.#resolver = options.resolver;
     this.capabilities = Object.freeze({
       search: options.search !== undefined,
       collections: options.collections !== undefined,
       import: options.writer !== undefined,
+      delete: options.deleter !== undefined,
     });
   }
 
@@ -93,5 +99,10 @@ export class RecipesService {
       ? { provenance: resolved.provenance }
       : { id: request.id, provenance: resolved.provenance };
     return this.#writer.create(resolved.document, options, context);
+  }
+
+  async deleteRecipe(ref: RecipeRef, context?: RequestContext): Promise<void> {
+    if (!this.#deleter) throw new UnsupportedRecipeCapabilityError("Recipe deletion is not available.");
+    await this.#deleter.delete(ref, context);
   }
 }
