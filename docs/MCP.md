@@ -17,20 +17,22 @@ The configured runtime exposes these tools:
 - `search_recipes`: paged free-text search returning recipe `ResourceLink` values;
 - `get_recipe`: complete schema.org Recipe retrieval by provider and provider-local
   ID;
-- `import_recipe`: non-idempotent import from a path, file URI, HTTP URL, or HTTPS
-  URL, with an optional stable personal ID.
+- `import_recipe`: non-idempotent import from a `recipes://` URI, path, file URI,
+  HTTP URL, or HTTPS URL, with an optional stable personal ID.
 - `delete_recipe`: permanently delete one recipe by provider and provider-local ID
   when the configured runtime supports deletion.
 
 The default runtime exposes:
 
 - static index resource `recipes://personal`;
-- recipe template `recipes://personal/{id}`.
+- generic recipe template `recipes://{provider}/{id}` for every provider active
+  in the runtime registry.
 
 The complete collection is read through the static index resource. A runtime with
-additional providers may register further provider-qualified recipe templates while
-leaving a large catalog non-enumerated. Search results are summary links; callers
-read the returned resource or call `get_recipe` for the complete document.
+additional providers leaves large catalogs non-enumerated. The generic resource
+handler validates the provider against that runtime registry before routing the
+read. Search results are summary links; callers read the returned resource or call
+`get_recipe` for the complete document.
 
 Tools are registered from application capabilities. A read-only service without
 search, import, or deletion must not advertise those tools.
@@ -60,13 +62,16 @@ see the implementation gap in [ARCHITECTURE.md](ARCHITECTURE.md).
 ## Paging and result shape
 
 MCP passes its cursor and limit to the provider-facing application request. The
-cursor is opaque to MCP and must not be converted to a global numeric offset.
+default limit is 20; callers may request up to 100 results. The cursor is opaque to
+MCP and must not be converted to a global numeric offset.
 
 Search returns:
 
 - MCP `resource_link` content for navigation;
 - structured content with `provider`, `id`, `uri`, `name`, `description`, and
-  `nextCursor`.
+  `nextCursor`;
+- optional `importSource`, a direct source URL that may be passed to
+  `import_recipe` without replacing the provider-qualified resource URI.
 
 `nextCursor` is `null` at the MCP boundary when no next page exists. Internally the
 core page omits `nextCursor`.
@@ -78,9 +83,13 @@ cursors.
 ## Error semantics
 
 - Invalid tool input is rejected by Zod schemas.
+- A recipe resource for a provider absent from the active runtime registry is
+  rejected before a catalog read.
 - `get_recipe` returns an MCP error result when the recipe is missing.
 - Reading a missing concrete resource raises a resource-read error.
 - Import is marked non-read-only and non-idempotent.
+- Importing a `recipes://` URI reads that provider's recipe and passes the
+  retrieved provenance to the personal writer.
 - Deletion is marked non-read-only and destructive. A runtime without deletion
   capability does not advertise `delete_recipe`.
 - Deletion for a provider not configured with a deleter returns an unsupported
@@ -113,6 +122,10 @@ Core MCP resources and tools are sufficient for the current workflow. Do not mod
 an internal catalog package as an MCP Extension. Consider an extension only after
 multiple independent servers demonstrate a concrete federation requirement.
 
+Provider availability is runtime configuration, not MCP federation. The runtime
+passes its explicit provider registry to this adapter; MCP must not name or
+construct individual providers itself.
+
 ## Manifests and runtime packaging
 
 Two manifest pairs are maintained:
@@ -130,8 +143,10 @@ sync. The installed runtime launches the committed self-contained bundle:
 node ./dist/recipes-mcp.mjs
 ```
 
-`RECIPES_DATA_DIRECTORY` is set to `${PLUGIN_DATA}` in plugin manifests so personal
-data survives plugin upgrades. Installed plugin caches may not contain
+`RECIPES_DATA_DIRECTORY` is set to `${PLUGIN_DATA}` in plugin manifests. They do
+not set `RECIPES_PROVIDERS`, so the runtime activates every provider known to its
+registry. This keeps the adapter and runtime provider-neutral. Personal data
+survives plugin upgrades. Installed plugin caches may not contain
 `node_modules`, `tsx`, or development dependencies; runtime manifests must never
 depend on them.
 

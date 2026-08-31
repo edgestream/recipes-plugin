@@ -5,7 +5,8 @@ import { registerRecipeTools } from "./tools.js";
 
 export interface RecipesMcpOptions {
   readonly recipes: RecipesService;
-  readonly providers?: readonly RecipeProviderPresentation[];
+  readonly providers: readonly RecipeProviderPresentation[];
+  readonly defaultProvider: string;
   readonly version?: string;
 }
 
@@ -18,17 +19,15 @@ export interface RecipeProviderPresentation {
 /** Creates the MCP presentation layer without constructing infrastructure. */
 export function createRecipesMcpServer({
   recipes,
-  providers = [{ id: "personal", title: "Personal recipes", enumerateResources: true }],
+  providers,
+  defaultProvider,
   version = "0.1.0",
 }: RecipesMcpOptions): McpServer {
-  const server = new McpServer({ name: "recipes", version });
-  for (const provider of providers) {
-    registerRecipeResources(server, recipes, {
-      provider: provider.id,
-      providerTitle: provider.title,
-      enumerateResources: provider.enumerateResources,
-    });
+  if (!providers.some((provider) => provider.id === defaultProvider)) {
+    throw new TypeError("The MCP default provider must be registered in the runtime.");
   }
-  registerRecipeTools(server, recipes, providers.map((provider) => provider.id));
+  const server = new McpServer({ name: "recipes", version });
+  registerRecipeResources(server, recipes, providers);
+  registerRecipeTools(server, recipes, providers.map((provider) => provider.id), defaultProvider);
   return server;
 }

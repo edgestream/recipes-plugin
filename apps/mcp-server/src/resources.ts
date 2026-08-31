@@ -3,25 +3,21 @@ import type { RecipeSummary } from "@edgestream/recipes-core";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/server";
 import { recipeIdSchema } from "./schemas.js";
 import { recipeMetadata } from "./presentation.js";
-
-export interface RecipeResourceOptions {
-  readonly provider: string;
-  readonly providerTitle: string;
-  readonly enumerateResources: boolean;
-}
+import type { RecipeProviderPresentation } from "./createServer.js";
 
 export function registerRecipeResources(
   server: McpServer,
   recipes: RecipesService,
-  { provider, providerTitle, enumerateResources }: RecipeResourceOptions,
+  providers: readonly RecipeProviderPresentation[],
 ): void {
-  const indexUri = `recipes://${provider}`;
-  if (enumerateResources) {
+  const providerIds = new Set(providers.map((provider) => provider.id));
+  for (const provider of providers.filter((candidate) => candidate.enumerateResources)) {
+    const indexUri = `recipes://${provider.id}`;
     server.registerResource(
-      `${provider}-recipes`,
+      `${provider.id}-recipes`,
       indexUri,
       {
-        title: `${providerTitle} index`,
+        title: `${provider.title} index`,
         description: `Read ${indexUri} to list every recipe in this collection. Use ${indexUri}/{id} to read a complete recipe.`,
         mimeType: "application/json",
       },
@@ -35,8 +31,8 @@ export function registerRecipeResources(
     );
   }
 
-  const recipeTemplate = new ResourceTemplate(`recipes://${provider}/{id}`, {
-    list: enumerateResources
+  const recipeTemplate = new ResourceTemplate("recipes://{provider}/{id}", {
+    list: providers.some((provider) => provider.enumerateResources)
       ? async (context) => ({
           resources: (await allRecipes(recipes, context.mcpReq.signal)).map((summary) => ({
             uri: recipeUri(summary.ref),
@@ -45,26 +41,18 @@ export function registerRecipeResources(
           })),
         })
       : undefined,
-    ...(enumerateResources
-      ? {
-          complete: {
-            id: async (value: string) => (await allRecipes(recipes))
-              .map((summary) => summary.ref.id)
-              .filter((id) => id.startsWith(value)),
-          },
-        }
-      : {}),
   });
   server.registerResource(
-    `${provider}-recipe`,
+    "recipe",
     recipeTemplate,
     {
-      title: `${providerTitle} recipe`,
-      description: `Read recipes://${provider}/{id} to retrieve one complete schema.org Recipe document.`,
+      title: "Recipe",
+      description: "Read recipes://{provider}/{id} to retrieve one complete schema.org Recipe document.",
       mimeType: "application/ld+json",
     },
     async (uri, _variables, context) => {
-      const ref = parseRecipeUri(uri.href, provider);
+      const ref = parseRecipeUri(uri.href);
+      if (!providerIds.has(ref.provider)) throw new Error(`Provider ${ref.provider} is not configured.`);
       const id = recipeIdSchema.parse(ref.id);
       const recipe = await recipes.getRecipe(ref, { signal: context.mcpReq.signal });
       if (!recipe) throw new Error(`Recipe ${id} was not found.`);

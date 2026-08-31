@@ -59,3 +59,6 @@ npm test
 for the plugin runtime and `recipes-cli.mjs` for the CLI. In the workspace,
 `npx recipes <command>` runs the compiled CLI. Set `RECIPES_DATA_DIRECTORY` to
 use a collection outside the current directory.
+
+Provider package design and contribution guidance is in
+[docs/PROVIDER.md](docs/PROVIDER.md).

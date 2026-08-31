@@ -4,7 +4,11 @@ import { createRecipesMcpServer } from "./createServer.js";
 
 export async function main(): Promise<void> {
   const runtime = createLocalRecipes();
-  const server = createRecipesMcpServer(runtime);
+  const server = createRecipesMcpServer({
+    recipes: runtime.recipes,
+    providers: runtime.providers,
+    defaultProvider: runtime.provider,
+  });
   await server.connect(new StdioServerTransport());
   console.error("Recipes MCP server running on stdio.");
 }

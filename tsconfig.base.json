@@ -3,6 +3,7 @@
     "paths": {
       "@edgestream/recipes-core": ["./packages/core/src/index.ts"],
       "@edgestream/recipes-application": ["./packages/application/src/index.ts"],
+      "@edgestream/recipes-provider-chefkoch": ["./packages/provider-chefkoch/src/index.ts"],
       "@edgestream/recipes-source-url": ["./packages/source-url/src/index.ts"],
       "@edgestream/recipes-store-file": ["./packages/store-file/src/index.ts"],
       "@edgestream/recipes-runtime": ["./packages/runtime/src/index.ts"],

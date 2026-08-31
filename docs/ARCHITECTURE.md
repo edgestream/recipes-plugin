@@ -17,6 +17,7 @@ identity, and independently testable adapters.
 apps/cli ---------+
                   +--> packages/runtime --> packages/application --> packages/core
 apps/mcp-server --+          +-----------> packages/store-file ---> packages/core
+                            +-----------> packages/provider-chefkoch -> packages/core
                              +-----------> packages/source-url ---> packages/core
 ```
 
@@ -39,7 +40,8 @@ The core defines transport-neutral data and ports:
 - `RecipeDocument` is normalized schema.org data.
 - `RecipeRef` is the provider-qualified application identity.
 - `RecipeRecord` combines a reference, document, and optional provenance.
-- `RecipeSummary` is the list and search projection.
+- `RecipeSummary` is the list and search projection and may expose an optional
+  direct `importSource` without replacing its internal reference.
 - `RecipeCatalog` provides `get` and paged `list`.
 - `RecipeSearch` is an optional paged search capability.
 - `RecipeWriter` creates owned records.
@@ -77,16 +79,35 @@ layout and provider-local IDs, but it does not own MCP or CLI URI construction.
 are separate modules. The adapter applies time and size limits and returns source
 provenance without replacing schema.org identity fields.
 
+### `packages/provider-chefkoch`
+
+The Chefkoch workspace package is a read-only `RecipeCatalog` and `RecipeSearch`.
+It depends only on core contracts and receives its document resolver through its
+constructor. Its provider-specific network method, validation, and operational
+limits belong in the package README, not in this general architecture document.
+
 ### `packages/runtime`
 
 The runtime reads process configuration and constructs the concrete local
 application. Both executable frontends use the same runtime so environment and
 adapter behavior cannot drift.
 
+The runtime has an explicit, static provider registry. It constructs only the
+provider packages declared as runtime dependencies; it never discovers packages
+dynamically. `RECIPES_PROVIDER` chooses the default provider for provider-local
+frontend inputs and defaults to `personal`. `RECIPES_PROVIDERS` is a
+whitespace-separated list of additional enabled provider IDs when it is set. When
+it is absent, every provider known to the runtime registry is active. An explicitly
+empty value enables no additional providers. The personal file provider is always
+active because it owns the import target and enumerable index.
+
 `CombinedCatalog` is a reusable runtime composition adapter for a known set of
 providers. It lists through one designated catalog, routes `get` by provider ID,
 and runs search in parallel. Its result order follows provider registration order;
 it intentionally has no compound cursor.
+
+CLI and MCP searches both default to 20 results. The CLI presents only that first
+page; MCP exposes its cursor for callers that need more pages.
 
 ### `apps/cli` and `apps/mcp-server`
 
@@ -110,6 +131,10 @@ type RecipeRecord = {
 - `ref.id` is the stable identity inside that catalog.
 - MCP and CLI may encode a reference as `recipes://{provider}/{id}`.
 - Storage adapters must not persist an internal URI as the schema.org URL.
+- A `recipes://` URI is a catalog-local import reference. The application resolves
+  it through that catalog before passing the retrieved document to the personal
+  writer. `RecipeSummary.importSource`, when present, is an optional direct source
+  URL; it is not an alternative recipe identity.
 
 Recipe IDs may contain characters that require URI encoding, but they must be safe
 provider-local names without path separators. A copied JSON filename remains the
@@ -125,6 +150,18 @@ Every catalog implementation must satisfy these rules:
 4. A foreign provider reference is not resolved accidentally.
 5. Missing records return `undefined`; conflicts use a typed conflict error.
 6. Callers may cancel local or remote work through `RequestContext.signal`.
+
+## Import paths
+
+The shared import use case accepts either a source reference (path, file URI, or
+HTTP(S) URL) or a provider-qualified recipe reference. Source imports use a
+`RecipeResolver`. Reference imports read the catalog first, then create a personal
+record while passing along the read record's provenance. This lets a provider
+retain its original retrieval method and source URL without exposing that URL in
+every search result.
+
+The CLI and MCP only parse the public recipe URI and call this shared use case;
+they do not name or construct providers.
 
 Reusable tests in `test/contracts/` enforce common store behavior. Future provider,
 database, and cache adapters must test the catalog capabilities they implement.
@@ -157,14 +194,20 @@ wired through all layers and covered by contract, CLI, and MCP tests.
 
 ## Extension model
 
-### External catalogs
+### Provider packages
 
-An external package implements `RecipeCatalog` and optional capabilities from
-`@edgestream/recipes-core`. It has no MCP dependency. Provider packages are
-separately installable and independently versioned outside this repository.
+Every provider package implements `RecipeCatalog` and optional capabilities from
+`@edgestream/recipes-core`. It has no MCP or CLI dependency. A provider may first
+be developed as a workspace package with its own package manifest and TypeScript
+project. It can later be separately installed and versioned outside this repository
+without changing the core boundary; runtime composition replaces the local `file:`
+dependency with a versioned package or GitHub reference.
 
-The application should gain an explicit provider registry when the second real
-catalog is integrated. Do not add speculative dynamic package discovery.
+See [PROVIDER.md](PROVIDER.md) for the package contract, runtime activation,
+provider URI imports, upstream safety, and provider test guidance.
+
+The runtime registry is introduced with the second real catalog. Do not add
+speculative dynamic package discovery.
 
 ### Import sources
 

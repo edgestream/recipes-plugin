@@ -8,6 +8,9 @@ Read the project documentation before changing code or public behavior:
 
 - Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for every architectural,
   storage, provider, cache, database, or module-boundary change.
+- Read [docs/PROVIDER.md](docs/PROVIDER.md) when adding or changing a provider
+  package, provider registry entry, provider activation, provider import behavior,
+  or provider-facing network code.
 - Read [docs/MCP.md](docs/MCP.md) for every MCP tool, resource, manifest,
   packaging, or runtime change.
 - Read [docs/PLUGIN.md](docs/PLUGIN.md) for every plugin manifest, plugin
@@ -31,6 +34,15 @@ before implementation. Do not silently replace an architectural decision.
 - Keep MCP and CLI as thin adapters over the shared application service and
   runtime composition root.
 - External provider packages depend on the core contracts, not on MCP or CLI.
+- Keep provider registration static in `packages/runtime`; CLI and MCP must not
+  name, construct, or dynamically discover providers.
+- When `RECIPES_PROVIDERS` is absent, activate every provider known to the runtime
+  registry. A set non-empty value is an explicit additional-provider list; a set
+  empty value enables no additional providers. The personal provider remains
+  active.
+- Provider search summaries must be readable through the same provider by their
+  `RecipeRef`; use a `recipes://` URI for provider imports rather than replacing
+  source identity with an internal URI.
 - Preserve directly editable JSON files. Do not introduce a mandatory metadata
   index for the personal file store.
 - Keep V1 read-oriented plus `import_recipe`. Do not add update, save, patch, or
@@ -51,6 +63,9 @@ Documentation is part of the implementation, not a follow-up task.
   change.
 - Update `docs/CLI.md` when commands, arguments, output, configuration, URI
   handling, or exit behavior change.
+- Update `docs/PROVIDER.md` when provider boundaries, registry activation,
+  provider URI/import behavior, testing guidance, or shared upstream-safety rules
+  change. Keep endpoint-specific access details in the affected provider README.
 - Keep `README.md` concise and end-user-oriented. Link or route deeper knowledge
   through this file and `AGENTS.md` instead of duplicating architecture prose in
   the README.
@@ -76,6 +91,8 @@ retain capitalization for proper names and acronyms.
 3. Make the smallest coherent change that preserves the documented boundaries.
 4. Add or update tests at the lowest useful layer. Reusable adapters should run
    the catalog contract tests.
+   Provider tests should use injected upstream collaborators and cover malformed
+   data and unsafe source URLs without requiring live network access.
 5. Rebuild committed runtime bundles when their sources or dependencies change.
 6. Update documentation before the final commit.
 

@@ -31,7 +31,7 @@ export function parseArguments(args: readonly string[]): CliCommand {
 
 function importCommand(args: readonly string[]): CliCommand {
   const [source, ...options] = args;
-  if (!source) throw new Error("import requires a JSON file path or URL.");
+  if (!source) throw new Error("import requires a recipe URI, JSON file path, or URL.");
   if (options.length === 0) return { type: "import", source };
   if (options.length !== 2 || options[0] !== "--id" || !options[1]) {
     throw new Error("import accepts only --id <id> after the source.");

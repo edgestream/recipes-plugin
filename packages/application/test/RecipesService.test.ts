@@ -46,6 +46,23 @@ test("imports through separate resolver and writer ports", async () => {
   assert.equal(imported.provenance?.source.value, "https://example.test/imported.json");
 });
 
+test("imports a recipe reference through its catalog and preserves provenance", async () => {
+  const personal = new MemoryStore();
+  const external = new MemoryStore("external");
+  await external.create(recipe("External recipe"), {
+    id: "external-recipe",
+    provenance: { source: sourceRef("https://external.test/external-recipe") },
+  });
+  const recipes = new RecipesService({ catalog: external, writer: personal });
+
+  assert.equal(recipes.capabilities.import, true);
+  const imported = await recipes.importRecipe({ reference: { provider: "external", id: "external-recipe" } });
+
+  assert.deepEqual(imported.ref, { provider: "personal", id: "source" });
+  assert.equal(imported.document.name, "External recipe");
+  assert.equal(imported.provenance?.source.value, "https://external.test/external-recipe");
+});
+
 test("round-trips provider-qualified recipe URIs with encoded ids", () => {
   const ref = { provider: "personal", id: "Family Pasta 100%" };
   const uri = recipeUri(ref);
