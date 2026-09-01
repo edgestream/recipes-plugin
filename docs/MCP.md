@@ -31,8 +31,10 @@ The default runtime exposes:
 The complete collection is read through the static index resource. A runtime with
 additional providers leaves large catalogs non-enumerated. The generic resource
 handler validates the provider against that runtime registry before routing the
-read. Search results are summary links; callers read the returned resource or call
-`get_recipe` for the complete document.
+read. An unfiltered request to list or browse a collection uses its static index
+resource; `search_recipes` requires non-empty query terms and is not a collection
+listing mechanism. Search results are summary links; callers read the returned
+resource or call `get_recipe` for the complete document.
 
 Tools are registered from application capabilities. A read-only service without
 search, import, or deletion must not advertise those tools.

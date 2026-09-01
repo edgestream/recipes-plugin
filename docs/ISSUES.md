@@ -22,8 +22,9 @@ source code, documentation, screenshots, logs, or external examples as needed.
 1. `## Summary` — one concise paragraph describing the problem or requested
    outcome.
 2. `## Expected behavior` — the observable result after the work is complete.
-3. `## Acceptance criteria` — a checklist of specific, testable conditions that
-   define completion.
+3. `## Acceptance criteria` — an unchecked Markdown task list (`- [ ]`) of
+   specific, testable conditions that define completion. Each criterion must be
+   independently checkable in the GitHub issue.
 
 ### Type-specific sections
 

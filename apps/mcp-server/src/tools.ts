@@ -18,7 +18,7 @@ export function registerRecipeTools(
     "search_recipes",
     {
       title: "Search recipes",
-      description: "Search the configured recipe providers and return provider-qualified recipe resources.",
+      description: "Search configured recipe providers using non-empty query terms. Do not use this tool for an unfiltered request to list or browse a collection; use the collection resource instead.",
       inputSchema: z.object({
         query: z.string().trim().min(1).describe("Words to find in recipe JSON-LD."),
         cursor: cursorSchema,
