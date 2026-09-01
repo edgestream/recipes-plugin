@@ -14,11 +14,11 @@ export function registerRecipeResources(
   for (const provider of providers.filter((candidate) => candidate.enumerateResources)) {
     const indexUri = `recipes://${provider.id}`;
     server.registerResource(
-      `${provider.id}-recipes`,
+      `list-${provider.id}-recipes`,
       indexUri,
       {
-        title: `${provider.title} index`,
-        description: `Read ${indexUri} to list every recipe in this collection. Use ${indexUri}/{id} to read a complete recipe.`,
+        title: `List ${provider.title.toLowerCase()}`,
+        description: "List or browse every recipe in this collection. Use this resource for an unfiltered request to list or browse the collection.",
         mimeType: "application/json",
       },
       async (uri, context) => ({
