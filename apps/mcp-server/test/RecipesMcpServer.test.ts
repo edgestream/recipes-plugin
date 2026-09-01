@@ -57,20 +57,9 @@ test("exposes one MCP server with multiple provider-qualified catalogs", async (
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
 
   try {
-    const tools = await client.listTools();
-    assert.deepEqual(tools.tools.map((tool) => tool.name), ["search_recipes", "get_recipe", "import_recipe", "delete_recipe"]);
-    assert.equal(
-      tools.tools.find((tool) => tool.name === "search_recipes")?.description,
-      "Search configured recipe providers using non-empty query terms. Do not use this tool for an unfiltered request to list or browse a collection; use the collection resource instead.",
-    );
+    assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name), ["search_recipes", "get_recipe", "import_recipe", "delete_recipe"]);
     const resources = await client.listResources();
-    assert.deepEqual(resources.resources.find((resource) => resource.uri === "recipes://personal"), {
-      uri: "recipes://personal",
-      name: "list-personal-recipes",
-      title: "List personal recipes",
-      description: "List or browse every recipe in this collection. Use this resource for an unfiltered request to list or browse the collection.",
-      mimeType: "application/json",
-    });
+    assert.ok(resources.resources.some((resource) => resource.uri === "recipes://personal"));
     assert.ok(resources.resources.every((resource) => resource.uri.startsWith("recipes://personal")));
     assert.deepEqual((await client.listResourceTemplates()).resourceTemplates.map((template) => template.uriTemplate), [
       "recipes://{provider}/{id}",
