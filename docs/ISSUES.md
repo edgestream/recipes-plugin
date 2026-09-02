@@ -272,6 +272,13 @@ The possible #15-to-#16 integration is optional, so neither issue blocks the
 other. Completing #20 early is preferred ordering only and is not a strict
 blocker for #14–#19.
 
+## Pull request titles
+
+Use a plain descriptive pull request title. Do not add a Conventional Commit
+prefix such as `feat:`, `fix:`, or `docs:` unless it is explicitly requested.
+When a requested title uses such a prefix, begin the summary after the prefix
+with a lowercase letter; retain capitalization for proper names and acronyms.
+
 ## Pull request links
 
 A pull request that fully implements an issue must link to it in the pull
