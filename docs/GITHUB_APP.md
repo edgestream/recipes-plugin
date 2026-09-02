@@ -28,6 +28,13 @@ every `gh` command. The wrapper infers `OWNER/REPO` from the current Git remote;
 outside a repository callers must pass `--repo OWNER/REPO`. Missing or ambiguous
 repository context fails closed. Do not call `/usr/bin/gh` directly from GPT1.
 
+GPT1 also installs a current-user-only `~/.local/bin/git` wrapper. It supplies
+the bot author and committer identity process-locally for every Git command. For
+GitHub `clone`, `fetch`, `pull`, `push`, and `ls-remote`, it derives the target
+from the URL or `origin` and routes the operation through the App launcher.
+An installation without access to that repository fails rather than using a
+personal HTTPS credential. Do not call `/usr/bin/git` directly from GPT1.
+
 Preflight a repository before mutations:
 
 ```bash
