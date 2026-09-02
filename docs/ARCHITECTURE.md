@@ -112,6 +112,11 @@ page; MCP exposes its cursor for callers that need more pages.
 ### `apps/cli` and `apps/mcp-server`
 
 The apps own only transport parsing, validation, presentation, and process startup.
+The MCP app has separate stdio and Streamable HTTP entry points, both creating a
+fresh presentation server through `createRecipesMcpServer` and the same runtime
+composition root. The HTTP adapter is a single-user, stateless request adapter;
+it owns HTTP body limits, host/origin checks, cancellation, and listener
+lifecycle, but not recipe behavior or provider construction.
 Their public behavior is documented in [CLI.md](CLI.md) and [MCP.md](MCP.md).
 
 ## Identity and documents

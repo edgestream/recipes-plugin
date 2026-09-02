@@ -56,9 +56,15 @@ npm test
 ```
 
 `npm run build` creates self-contained Node bundles in `dist/`: `recipes-mcp.mjs`
-for the plugin runtime and `recipes-cli.mjs` for the CLI. In the workspace,
+for the plugin runtime, `recipes-mcp-http.mjs` for optional single-user
+Streamable HTTP deployments, and `recipes-cli.mjs` for the CLI. In the workspace,
 `npx recipes <command>` runs the compiled CLI. Set `RECIPES_DATA_DIRECTORY` to
 use a collection outside the current directory.
+
+For a local Streamable HTTP MCP endpoint, run
+`RECIPES_DATA_DIRECTORY=/path/to/recipes node ./dist/recipes-mcp-http.mjs` and
+connect to `http://127.0.0.1:3000/mcp`. Remote exposure requires HTTPS and an
+authenticated proxy or tunnel; see [docs/MCP.md](docs/MCP.md).
 
 Provider package design and contribution guidance is in
 [docs/PROVIDER.md](docs/PROVIDER.md).
