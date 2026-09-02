@@ -22,6 +22,12 @@ export CODEX_GITHUB_APP_INSTALLATION_ID=158453912
 export CODEX_GITHUB_APP_PRIVATE_KEY_FILE="$HOME/.local/share/codex-github-app/github-app.pem"
 ```
 
+GPT1 additionally installs a current-user-only `~/.local/bin/gh` wrapper ahead
+of `/usr/bin/gh`. It supplies that configuration and invokes this launcher for
+every `gh` command. The wrapper infers `OWNER/REPO` from the current Git remote;
+outside a repository callers must pass `--repo OWNER/REPO`. Missing or ambiguous
+repository context fails closed. Do not call `/usr/bin/gh` directly from GPT1.
+
 Preflight a repository before mutations:
 
 ```bash
