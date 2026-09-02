@@ -11,13 +11,15 @@
     "recipes": "./dist/recipes-cli.mjs"
   },
   "scripts": {
-    "build": "tsc -b && npm run bundle:mcp && npm run bundle:cli",
+    "build": "tsc -b && npm run bundle:mcp && npm run bundle:mcp:http && npm run bundle:cli",
     "bundle:mcp": "esbuild apps/mcp-server/src/main.ts --bundle --platform=node --target=node24 --format=esm --minify-whitespace --outfile=dist/recipes-mcp.mjs && node scripts/normalize-bundle.mjs dist/recipes-mcp.mjs",
+    "bundle:mcp:http": "esbuild apps/mcp-server/src/web-main.ts --bundle --platform=node --target=node24 --format=esm --minify-whitespace --outfile=dist/recipes-mcp-http.mjs && node scripts/normalize-bundle.mjs dist/recipes-mcp-http.mjs",
     "bundle:cli": "esbuild apps/cli/src/main.ts --bundle --platform=node --target=node24 --format=esm --minify-whitespace --outfile=dist/recipes-cli.mjs && node scripts/normalize-bundle.mjs dist/recipes-cli.mjs",
     "check": "tsc -b --pretty false",
     "test": "tsx --test packages/*/test/*.test.ts apps/*/test/*.test.ts test/contracts/*.test.ts",
     "recipes": "node dist/recipes-cli.mjs",
-    "start:mcp": "tsx apps/mcp-server/src/main.ts"
+    "start:mcp": "tsx apps/mcp-server/src/main.ts",
+    "start:mcp:http": "tsx apps/mcp-server/src/web-main.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

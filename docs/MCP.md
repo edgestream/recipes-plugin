@@ -8,7 +8,50 @@ must not construct providers, stores, resolvers, caches, or databases.
 
 The stdio executable is assembled by `packages/runtime` and started from
 `apps/mcp-server/src/main.ts`. Protocol logging goes to stderr; stdout is reserved
-for MCP transport messages.
+for MCP transport messages. `apps/mcp-server/src/web-main.ts` is a separate,
+optional single-user Streamable HTTP entry point. Both transports call
+`createRecipesMcpServer`; neither duplicates tool, resource, provider, or service
+composition.
+
+## Streamable HTTP deployment
+
+The committed `dist/recipes-mcp-http.mjs` bundle serves MCP at `/mcp` and a
+minimal non-MCP health check at `/health`. It uses the SDK's current Streamable
+HTTP handler in stateless mode: each request receives the same registered MCP
+surface, with JSON responses by default and request-scoped SSE whenever the
+protocol handler needs a stream. It does not provide the obsolete standalone
+HTTP-plus-SSE transport or persistent HTTP sessions.
+
+Start it with Node 24 or later; no development dependencies are required at
+runtime:
+
+```bash
+RECIPES_DATA_DIRECTORY=/path/to/recipes node ./dist/recipes-mcp-http.mjs
+```
+
+Configuration is deliberately environment-only:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `RECIPES_MCP_HTTP_HOST` | `127.0.0.1` | Listener address. |
+| `RECIPES_MCP_HTTP_PORT` | `3000` | Listener port. |
+| `RECIPES_MCP_HTTP_ALLOW_REMOTE` | unset | Must be exactly `true` for a non-loopback listener. |
+| `RECIPES_MCP_HTTP_PUBLIC_URL` | derived local `/mcp` URL | Public HTTP(S) `/mcp` URL printed at startup for reverse-proxy or tunnel deployments. |
+| `RECIPES_MCP_HTTP_ALLOWED_ORIGINS` | loopback hostnames | Whitespace-separated browser origin hostnames permitted to make origin-bearing requests. |
+| `RECIPES_DATA_DIRECTORY` | runtime default | Personal JSON collection location. |
+
+Loopback is the safe default. A non-loopback setting emits a warning and is
+refused unless explicitly enabled. A remotely reachable server must be behind
+HTTPS and an authenticated reverse proxy or Secure MCP Tunnel; this repository
+does not implement OAuth, TLS, or a public unauthenticated deployment. Set
+`RECIPES_MCP_HTTP_ALLOWED_ORIGINS` only to trusted origin hostnames when a browser
+client needs to send an `Origin` header. Requests are bounded to 1 MiB, validate
+host and origin headers before MCP dispatch, and propagate a disconnected client
+to the MCP request signal. HTTP errors and logs contain only short operational
+messages, never recipe content, credentials, local paths, or stack traces.
+
+`SIGINT` and `SIGTERM` stop the listener. The HTTP handler then aborts active
+request work through the SDK and does not write the personal store itself.
 
 ## V1 surface
 
@@ -157,6 +200,8 @@ depend on them.
 
 Rebuild and commit `dist/recipes-mcp.mjs` whenever MCP source, runtime composition,
 runtime imports, dependencies, bundle options, or MCP manifests change.
+Rebuild and commit `dist/recipes-mcp-http.mjs` whenever the HTTP entry point,
+shared MCP presentation, runtime composition, or its bundle options change.
 
 ## Required verification
 
@@ -165,6 +210,9 @@ MCP behavior has two independent verification layers:
 1. Protocol tests use an in-memory MCP client and server transport.
 2. Release verification starts `dist/recipes-mcp.mjs` with Node and performs a real
    stdio handshake, tool listing, and resource listing.
+3. HTTP integration tests start an ephemeral loopback listener and use a real
+   Streamable HTTP client for initialization, discovery, tool calls, and resource
+   reads. Also smoke-test the committed HTTP bundle with an isolated data directory.
 
 Source-level tests alone do not prove that an installed plugin bundle starts. A
 natural-language agent response also does not prove MCP use; verify actual protocol

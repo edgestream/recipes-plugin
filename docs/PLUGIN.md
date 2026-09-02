@@ -45,6 +45,10 @@ intentionally omit
 runtime registry, including Chefkoch. This is packaged runtime configuration; it
 does not introduce a provider dependency into MCP or CLI.
 
+The optional `dist/recipes-mcp-http.mjs` bundle is not referenced by either
+plugin manifest. Plugin installation continues to launch stdio only; HTTP is a
+deliberately separate single-user deployment surface documented in [MCP.md](MCP.md).
+
 Keep the following values synchronized wherever both contracts express them:
 
 - plugin identity and metadata: name, version, description, author, repository,
