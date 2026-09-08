@@ -79,6 +79,11 @@ For every GitHub issue or pull request, follow [docs/ISSUES.md](docs/ISSUES.md).
 It is the mandatory source of truth for issue structure, metadata, labels,
 dependencies, pull request titles, linking, and verification.
 
+## Git commits
+
+For every commit, follow [docs/REPOSITORY.md](docs/REPOSITORY.md).
+It is the mandatory source of truth for commit message conventions.
+
 ## Implementation workflow
 
 1. Inspect the branch, worktree, and user-owned changes before editing.
