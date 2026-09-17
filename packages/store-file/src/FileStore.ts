@@ -22,20 +22,31 @@ import {
   type RequestContext,
   type SearchRecipesRequest,
 } from "@edgestream/recipes-core";
-import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
+import { link, mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 
 const defaultPageSize = 100;
+const directoryWrites = new Map<string, Promise<void>>();
+
+export interface FileStoreOptions {
+  /** Optional aggregate byte limit for one directly editable collection. */
+  readonly maxBytes?: number;
+}
 
 /** A read/write recipe catalog backed by directly editable `<id>.json` files. */
 export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, RecipeDeleter {
   readonly #directory: string;
   readonly #provider: string;
 
-  constructor(directory = "./data", provider = "personal") {
+  readonly #maxBytes: number | undefined;
+
+  constructor(directory = "./data", provider = "personal", options: FileStoreOptions = {}) {
     assertProviderId(provider);
+    if (options.maxBytes !== undefined && (!Number.isSafeInteger(options.maxBytes) || options.maxBytes < 1)) throw new TypeError("File store maxBytes must be a positive safe integer.");
     this.#directory = directory;
     this.#provider = provider;
+    this.#maxBytes = options.maxBytes;
   }
 
   async create(recipe: RecipeDocument, options?: CreateRecipeOptions, context?: RequestContext): Promise<RecipeRecord> {
@@ -44,17 +55,24 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, Rec
     const id = options?.id ?? await this.#idFor(recipe, options);
     assertRecipeId(id);
     const document = normalizeRecipeDocument(recipe);
-    await mkdir(this.#directory, { recursive: true });
-    try {
-      await writeFile(this.#pathFor(id), `${JSON.stringify(document, null, 2)}\n`, {
-        encoding: "utf8",
-        flag: "wx",
-        signal: context?.signal,
-      });
-    } catch (error: unknown) {
-      if (isExisting(error)) throw new RecipeConflictError(`A recipe with id ${id} already exists.`);
-      throw error;
-    }
+    const encoded = Buffer.from(`${JSON.stringify(document, null, 2)}\n`, "utf8");
+    await exclusiveDirectoryWrite(this.#directory, async () => {
+      context?.signal?.throwIfAborted();
+      await mkdir(this.#directory, { recursive: true });
+      if (this.#maxBytes !== undefined && await this.#usedBytes() + encoded.byteLength > this.#maxBytes) throw new Error("Personal recipe collection quota exceeded.");
+      const target = this.#pathFor(id);
+      const temporary = `${target}.${randomUUID()}.tmp`;
+      try {
+        await writeFile(temporary, encoded, { flag: "wx", signal: context?.signal });
+        context?.signal?.throwIfAborted();
+        await link(temporary, target);
+      } catch (error: unknown) {
+        if (isExisting(error)) throw new RecipeConflictError(`A recipe with id ${id} already exists.`);
+        throw error;
+      } finally {
+        await unlink(temporary).catch(() => undefined);
+      }
+    });
     return record(this.#provider, id, document, options);
   }
 
@@ -141,6 +159,12 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, Rec
     }
   }
 
+  async #usedBytes(): Promise<number> {
+    let total = 0;
+    for (const id of await this.#ids()) total += (await stat(this.#pathFor(id))).size;
+    return total;
+  }
+
   #pathFor(id: string): string {
     assertRecipeId(id);
     return join(this.#directory, `${id}.json`);
@@ -152,6 +176,19 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, Rec
       signal: context?.signal,
     }));
     return normalizeRecipeDocument(value);
+  }
+}
+
+async function exclusiveDirectoryWrite(directory: string, operation: () => Promise<void>): Promise<void> {
+  const previous = directoryWrites.get(directory) ?? Promise.resolve();
+  let release!: () => void;
+  const next = new Promise<void>((resolve) => { release = resolve; });
+  const queued = previous.then(() => next);
+  directoryWrites.set(directory, queued);
+  await previous;
+  try { await operation(); } finally {
+    release();
+    if (directoryWrites.get(directory) === queued) directoryWrites.delete(directory);
   }
 }
 

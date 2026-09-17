@@ -53,10 +53,47 @@ messages, never recipe content, credentials, local paths, or stack traces.
 `SIGINT` and `SIGTERM` stop the listener. The HTTP handler then aborts active
 request work through the SDK and does not write the personal store itself.
 
+## Hosted OAuth and personal ownership
+
+A remotely reachable HTTP listener requires `RECIPES_MCP_OAUTH_RESOURCE` and
+the private adapter-verifier configuration. It publishes protected-resource
+metadata at `/.well-known/oauth-protected-resource`; initialization and tool
+schema discovery remain public, while resources and every tool call require a
+bearer token. The adapter is the only token authority: Recipes sends the token
+to its cluster-private introspection endpoint and fails closed for an outage,
+inactive token, unexpected issuer, non-exact audience, missing subject, or
+scope failure. It never accepts a Hydra token directly or identity headers.
+
+| Variable | Meaning |
+| --- | --- |
+| `RECIPES_MCP_OAUTH_RESOURCE` | Exact canonical HTTPS `/mcp` resource URL. |
+| `RECIPES_MCP_OAUTH_ISSUER` | Exact adapter issuer, including its trailing slash. |
+| `RECIPES_MCP_INTROSPECTION_URL` | Cluster-private adapter introspection URL. |
+| `RECIPES_MCP_INTROSPECTION_CLIENT_ID` / `RECIPES_MCP_INTROSPECTION_CLIENT_SECRET` | Dedicated adapter verifier credential. |
+| `RECIPES_HOSTED_DATA_ROOT` | Writable mounted root for opaque per-user stores. |
+| `RECIPES_HOSTED_IMPORT_ALLOWED_HOSTS` | Space-separated, operator-approved public recipe hostnames; empty disables direct hosted URL imports. |
+
+Read operations (`list_recipes`, search, get, resources) require
+`recipes:read`; import and deletion require `recipes:write`. The runtime derives
+each mounted-store directory from SHA-256 of the verified `(issuer, subject)`
+pair. It never uses email, client ID, a session identifier, a forwarded header,
+or a tool argument. CLI and stdio retain their trusted single-directory mode.
+
+The Ory adapter currently has implementation evidence but its complete live
+two-user qualification remains open in Strategy #10 and the Recipes pilot #33.
+
+Hosted imports are a deliberately narrower mode than CLI/stdio: paths, `file:`
+URLs, credentials in URLs, non-HTTP(S) protocols, redirects beyond three hops,
+and destinations outside the approved hostname list are rejected before a
+recipe document is read. Each redirect is validated again and DNS results with
+private, loopback, link-local, multicast, reserved, or IPv4-mapped addresses
+are refused. Deployment egress policy remains a required second control.
+
 ## V1 surface
 
 The configured runtime exposes these tools:
 
+- `list_recipes`: paged browsing of the current personal collection;
 - `search_recipes`: paged free-text search returning recipe `ResourceLink` values;
 - `get_recipe`: complete schema.org Recipe retrieval by provider and provider-local
   ID;

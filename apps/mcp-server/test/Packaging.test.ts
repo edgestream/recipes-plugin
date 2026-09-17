@@ -51,6 +51,7 @@ test("performs a real stdio handshake with the bundled MCP server", async () => 
   try {
     await client.connect(transport);
     assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name), [
+      "list_recipes",
       "search_recipes",
       "get_recipe",
       "import_recipe",

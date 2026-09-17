@@ -111,6 +111,11 @@ The package README must state whether its access method is official, the expecte
 request behavior, and the terms or rate-limit review that maintainers must perform
 before enabling it for users.
 
+Hosted composition gives provider resolvers the same public-source policy as a
+direct import: only operator-approved public HTTP(S) hostnames may be fetched.
+Provider packages must keep network access injected so this policy remains
+testable and cannot be bypassed by a provider-specific fetch path.
+
 ## Tests and delivery
 
 Test a provider at its own boundary with injected collaborators. Cover successful

@@ -36,7 +36,7 @@ test("serves the existing Recipes MCP surface through Streamable HTTP", async ()
   const transport = new StreamableHTTPClientTransport(endpoint);
   try {
     await client.connect(transport);
-    assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name), ["search_recipes", "get_recipe", "import_recipe", "delete_recipe"]);
+    assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name), ["list_recipes", "search_recipes", "get_recipe", "import_recipe", "delete_recipe"]);
     assert.equal((await client.listResources()).resources[0]?.uri, "recipes://personal");
     assert.deepEqual((await client.listResourceTemplates()).resourceTemplates.map((template) => template.uriTemplate), ["recipes://{provider}/{id}"]);
     const result = await client.callTool({ name: "get_recipe", arguments: { provider: "personal", id: "tomato-pasta" } });

@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { Readable, Transform } from "node:stream";
 import { createMcpHandler, hostHeaderValidationResponse, originValidationResponse, type McpServerFactory } from "@modelcontextprotocol/server";
+import type { RecipesTokenVerifier, VerifiedRecipesPrincipal } from "./auth.js";
 
 const defaultBodyLimit = 1_048_576;
 
@@ -11,6 +12,11 @@ export interface RecipesMcpHttpOptions {
   readonly allowedHosts: readonly string[];
   readonly allowedOrigins: readonly string[];
   readonly bodyLimit?: number;
+  readonly authentication?: {
+    readonly resource: string;
+    readonly issuer: string;
+    readonly verifier: RecipesTokenVerifier;
+  };
 }
 
 /** Creates the transport-specific HTTP listener around an existing MCP server factory. */
@@ -29,6 +35,10 @@ export function createRecipesMcpHttpServer(factory: McpServerFactory, options: R
         writeResponse(response, new Response(JSON.stringify({ status: "ok" }), { headers: { "content-type": "application/json; charset=utf-8" } }));
         return;
       }
+      if ((request.url ?? "").split("?", 1)[0] === "/.well-known/oauth-protected-resource" && options.authentication) {
+        writeResponse(response, Response.json({ resource: options.authentication.resource, authorization_servers: [options.authentication.issuer] }));
+        return;
+      }
       if ((request.url ?? "").split("?", 1)[0] !== path) {
         writeResponse(response, new Response("Not found.", { status: 404 }));
         return;
@@ -42,7 +52,9 @@ export function createRecipesMcpHttpServer(factory: McpServerFactory, options: R
       response.once("close", () => { if (!response.writableEnded) abortController.abort(); });
       const webRequest = toWebRequest(request, abortController.signal, bodyLimit);
       const rejected = hostHeaderValidationResponse(webRequest, [...options.allowedHosts]) ?? originValidationResponse(webRequest, [...options.allowedOrigins]);
-      await writeResponse(response, rejected ?? await handler.fetch(webRequest));
+      if (rejected) return void await writeResponse(response, rejected);
+      const auth = options.authentication === undefined ? undefined : await authenticate(webRequest, options.authentication);
+      await writeResponse(response, auth instanceof Response ? auth : await handler.fetch(webRequest, auth === undefined ? undefined : { authInfo: auth }));
     } catch (error) {
       console.error(`Recipes MCP HTTP request failed: ${safeErrorMessage(error)}`);
       if (!response.headersSent) writeResponse(response, new Response("Internal server error.", { status: 500 }));
@@ -51,6 +63,39 @@ export function createRecipesMcpHttpServer(factory: McpServerFactory, options: R
   });
   server.once("close", () => void handler.close().catch(() => undefined));
   return server;
+}
+
+async function authenticate(request: Request, authentication: NonNullable<RecipesMcpHttpOptions["authentication"]>) {
+  const body = await request.clone().json().catch(() => undefined) as { method?: unknown; params?: { name?: unknown } } | undefined;
+  if (body?.method === "initialize" || body?.method === "tools/list") return undefined;
+  const token = bearerToken(request.headers.get("authorization"));
+  if (!token) return challenge(authentication.resource);
+  let principal: VerifiedRecipesPrincipal;
+  try { principal = await authentication.verifier.verify(token, request.signal); }
+  catch { return challenge(authentication.resource); }
+  const requiredScope = body?.method === "tools/call" && (body.params?.name === "import_recipe" || body.params?.name === "delete_recipe") ? "recipes:write" : "recipes:read";
+  if (!principal.scopes.includes(requiredScope)) return new Response("Insufficient scope.", { status: 403, headers: { "www-authenticate": `Bearer resource_metadata="${protectedResourceMetadataUrl(authentication.resource)}", error="insufficient_scope", scope="${requiredScope}"` } });
+  return {
+    token,
+    clientId: "recipes-oauth-client",
+    scopes: [...principal.scopes],
+    resource: new URL(authentication.resource),
+    extra: { recipesPrincipal: principal },
+  };
+}
+
+function bearerToken(value: string | null): string | undefined {
+  const match = /^Bearer ([^\s]+)$/u.exec(value ?? "");
+  return match?.[1];
+}
+
+function challenge(resource: string): Response {
+  return new Response("Authentication required.", { status: 401, headers: { "www-authenticate": `Bearer resource_metadata="${protectedResourceMetadataUrl(resource)}", error="invalid_token"` } });
+}
+
+function protectedResourceMetadataUrl(resource: string): string {
+  const url = new URL(resource);
+  return new URL("/.well-known/oauth-protected-resource", url.origin).href;
 }
 
 function toWebRequest(request: IncomingMessage, signal: AbortSignal, bodyLimit: number): Request {

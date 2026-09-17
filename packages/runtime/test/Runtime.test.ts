@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createLocalRecipes, localRecipesConfiguration } from "../src/index.js";
+import { createLocalRecipes, localRecipesConfiguration, personalStorageNamespace } from "../src/index.js";
 
 test("reads the default provider and additional provider list once for both frontends", () => {
   assert.deepEqual(localRecipesConfiguration({
@@ -63,4 +63,11 @@ test("rejects an enabled provider absent from the registry", () => {
     () => createLocalRecipes({ providers: ["missing"] }),
     /is not registered/u,
   );
+});
+
+test("derives a stable opaque hosted namespace from issuer and subject only", () => {
+  const namespace = personalStorageNamespace("https://mcp-auth.example/", "kratos-uuid");
+  assert.match(namespace, /^[A-Za-z0-9_-]{43}$/u);
+  assert.equal(namespace, personalStorageNamespace("https://mcp-auth.example/", "kratos-uuid"));
+  assert.notEqual(namespace, personalStorageNamespace("https://mcp-auth.example/", "other-uuid"));
 });

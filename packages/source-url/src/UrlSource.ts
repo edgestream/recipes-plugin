@@ -12,6 +12,10 @@ export interface UrlSourceOptions {
   readonly fetch?: typeof fetch;
   readonly maxBytes?: number;
   readonly timeoutMs?: number;
+  /** Hosted mode rejects paths and permits only operator-approved public hosts. */
+  readonly hostedPublic?: boolean;
+  readonly allowedHosts?: readonly string[];
+  readonly maxRedirects?: number;
 }
 
 /** Resolves Recipe JSON directly or from HTML JSON-LD metadata. */
@@ -22,6 +26,9 @@ export class UrlSource implements RecipeResolver {
     this.#options = {
       maxBytes: options.maxBytes ?? 2 * 1024 * 1024,
       timeoutMs: options.timeoutMs ?? 15_000,
+      hostedPublic: options.hostedPublic ?? false,
+      allowedHosts: options.allowedHosts ?? [],
+      maxRedirects: options.maxRedirects ?? 3,
       ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
     };
   }
