@@ -1,6 +1,7 @@
-import { createLocalRecipes } from "@edgestream/recipes-runtime";
+import { createHostedRecipes, createLocalRecipes } from "@edgestream/recipes-runtime";
 import { createRecipesMcpServer } from "./createServer.js";
 import { createRecipesMcpHttpServer } from "./web.js";
+import { IntrospectionVerifier, type VerifiedRecipesPrincipal } from "./auth.js";
 
 const loopbackHosts = new Set(["127.0.0.1", "::1", "localhost"]);
 
@@ -10,12 +11,16 @@ export async function main(): Promise<void> {
   const publicUrl = parsePublicUrl(process.env.RECIPES_MCP_HTTP_PUBLIC_URL, host, port);
   if (!loopbackHosts.has(host) && process.env.RECIPES_MCP_HTTP_ALLOW_REMOTE !== "true") throw new Error("Refusing non-loopback binding. Set RECIPES_MCP_HTTP_ALLOW_REMOTE=true only behind HTTPS and an authenticated proxy or tunnel.");
   if (!loopbackHosts.has(host)) console.error("WARNING: Recipes MCP HTTP is remotely reachable. Use HTTPS and an authenticated reverse proxy or Secure MCP Tunnel.");
-  const server = createRecipesMcpHttpServer(() => {
-    const runtime = createLocalRecipes();
+  const authentication = hostedAuthentication(process.env);
+  if (!loopbackHosts.has(host) && authentication === undefined) throw new Error("Remotely reachable Recipes MCP requires OAuth adapter verifier configuration.");
+  const server = createRecipesMcpHttpServer((context) => {
+    const principal = context.authInfo?.extra?.recipesPrincipal as VerifiedRecipesPrincipal | undefined;
+    const runtime = authentication === undefined || principal === undefined ? createLocalRecipes() : createHostedRecipes({ dataRoot: authentication.dataRoot, principal, publicImportHosts: authentication.publicImportHosts });
     return createRecipesMcpServer({ recipes: runtime.recipes, providers: runtime.providers, defaultProvider: runtime.provider });
   }, {
-    host, port, allowedHosts: [host, "localhost", "127.0.0.1", "[::1]"],
+    host, port, allowedHosts: [host, "localhost", "127.0.0.1", "[::1]", ...(authentication === undefined ? [] : [new URL(authentication.resource).host])],
     allowedOrigins: readList(process.env.RECIPES_MCP_HTTP_ALLOWED_ORIGINS, ["localhost", "127.0.0.1", "[::1]"]),
+    ...(authentication === undefined ? {} : { authentication }),
   });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
   console.error(`Recipes MCP HTTP server listening at ${publicUrl}`);
@@ -32,6 +37,23 @@ export async function main(): Promise<void> {
   };
   process.once("SIGINT", stop);
   process.once("SIGTERM", stop);
+}
+
+function hostedAuthentication(env: NodeJS.ProcessEnv): ({ resource: string; issuer: string; verifier: IntrospectionVerifier; dataRoot: string; publicImportHosts: readonly string[] }) | undefined {
+  const resource = env.RECIPES_MCP_OAUTH_RESOURCE;
+  if (resource === undefined) return undefined;
+  const issuer = required(env, "RECIPES_MCP_OAUTH_ISSUER");
+  const endpoint = required(env, "RECIPES_MCP_INTROSPECTION_URL");
+  const clientId = required(env, "RECIPES_MCP_INTROSPECTION_CLIENT_ID");
+  const clientSecret = required(env, "RECIPES_MCP_INTROSPECTION_CLIENT_SECRET");
+  const dataRoot = required(env, "RECIPES_HOSTED_DATA_ROOT");
+  return { resource: new URL(resource).href, issuer: new URL(issuer).href, dataRoot, publicImportHosts: readList(env.RECIPES_HOSTED_IMPORT_ALLOWED_HOSTS, []), verifier: new IntrospectionVerifier({ endpoint, clientId, clientSecret, issuer, resource }) };
+}
+
+function required(env: NodeJS.ProcessEnv, name: string): string {
+  const value = env[name];
+  if (!value) throw new Error(`${name} is required when RECIPES_MCP_OAUTH_RESOURCE is set.`);
+  return value;
 }
 
 function parsePort(value: string | undefined): number {

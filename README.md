@@ -68,3 +68,8 @@ authenticated proxy or tunnel; see [docs/MCP.md](docs/MCP.md).
 
 Provider package design and contribution guidance is in
 [docs/PROVIDER.md](docs/PROVIDER.md).
+
+The container image runs the HTTP bundle as a non-root user and expects a
+writable `/data` mount. It is not suitable for public exposure until adapter
+verification and the hosted deployment gates are configured; see
+[docs/MCP.md](docs/MCP.md).

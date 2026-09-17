@@ -73,6 +73,22 @@ test("rejects concurrent creates for the same id atomically", async () => {
   }
 });
 
+test("enforces a collection quota while concurrent writes remain atomic", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "recipes-store-"));
+  try {
+    const store = new FileStore(directory, "personal", { maxBytes: 110 });
+    const recipe = { "@type": "Recipe", name: "A", description: "" };
+    const results = await Promise.allSettled([store.create(recipe, { id: "one" }), store.create(recipe, { id: "two" })]);
+    assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+    const files = await store.list();
+    assert.equal(files.items.length, 1);
+    const persisted = await readFile(join(directory, `${files.items[0]!.ref.id}.json`), "utf8");
+    assert.doesNotThrow(() => JSON.parse(persisted));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("deletes only the selected owned recipe", async () => {
   const directory = await mkdtemp(join(tmpdir(), "recipes-store-"));
   try {

@@ -14,6 +14,24 @@ export function registerRecipeTools(
     .refine((provider) => providers.includes(provider), `Provider must be one of: ${providers.join(", ")}.`)
     .default(defaultProvider);
 
+  server.registerTool(
+    "list_recipes",
+    {
+      title: "List saved recipes",
+      description: "List the current personal recipe collection. This does not search external providers.",
+      inputSchema: z.object({ cursor: cursorSchema, limit: limitSchema }),
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    },
+    async ({ cursor, limit }, context) => {
+      const page = await recipes.listRecipes(cursor === undefined ? { limit } : { cursor, limit }, { signal: context.mcpReq.signal });
+      const results = page.items.map(recipeResult);
+      return {
+        content: results.map(({ uri, name, description }) => ({ type: "resource_link" as const, uri, name, description, mimeType: "application/ld+json" })),
+        structuredContent: { results, nextCursor: page.nextCursor ?? null, empty: results.length === 0 },
+      };
+    },
+  );
+
   if (recipes.capabilities.search) server.registerTool(
     "search_recipes",
     {

@@ -5,6 +5,8 @@ import { UrlSource, type UrlSourceOptions } from "@edgestream/recipes-source-url
 import { FileStore } from "@edgestream/recipes-store-file";
 import { CombinedCatalog, type RecipeProvider } from "./CombinedCatalog.js";
 import { localRecipesConfiguration, type LocalRecipesConfiguration } from "./configuration.js";
+import { personalStorageNamespace } from "./hosted.js";
+import { join } from "node:path";
 
 export interface LocalRecipesOptions extends Partial<LocalRecipesConfiguration> {
   readonly source?: UrlSourceOptions;
@@ -21,6 +23,13 @@ export interface LocalRecipesRuntime {
   /** The configured default provider for provider-local CLI and MCP inputs. */
   readonly provider: string;
   readonly providers: readonly LocalRecipeProvider[];
+}
+
+export interface HostedRecipesOptions extends Omit<LocalRecipesOptions, "dataDirectory"> {
+  readonly dataRoot: string;
+  /** These values must come from a successful private adapter verification. */
+  readonly principal: { readonly issuer: string; readonly subject: string };
+  readonly publicImportHosts?: readonly string[];
 }
 
 /** Creates the shared local runtime used by both executable frontends. */
@@ -47,6 +56,15 @@ export function createLocalRecipes(options: LocalRecipesOptions = {}): LocalReci
       resolver: source,
     }),
   };
+}
+
+/** Creates an isolated personal runtime. This is intentionally not used by CLI or stdio. */
+export function createHostedRecipes(options: HostedRecipesOptions): LocalRecipesRuntime {
+  return createLocalRecipes({
+    ...options,
+    dataDirectory: join(options.dataRoot, personalStorageNamespace(options.principal.issuer, options.principal.subject)),
+    source: { ...options.source, hostedPublic: true, allowedHosts: options.publicImportHosts ?? [] },
+  });
 }
 
 function providerRegistry(store: FileStore, resolver: RecipeResolver): ReadonlyMap<string, () => LocalRecipeProvider> {

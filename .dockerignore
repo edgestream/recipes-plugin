@@ -1,0 +1,3 @@
+*
+!dist/recipes-mcp-http.mjs
+!Dockerfile

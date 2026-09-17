@@ -57,7 +57,9 @@ test("exposes one MCP server with multiple provider-qualified catalogs", async (
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
 
   try {
-    assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name), ["search_recipes", "get_recipe", "import_recipe", "delete_recipe"]);
+    assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name), ["list_recipes", "search_recipes", "get_recipe", "import_recipe", "delete_recipe"]);
+    const listed = await client.callTool({ name: "list_recipes", arguments: { limit: 1 } });
+    assert.equal((listed.structuredContent as { results?: unknown[] }).results?.length, 1);
     const resources = await client.listResources();
     assert.ok(resources.resources.some((resource) => resource.uri === "recipes://personal"));
     assert.ok(resources.resources.every((resource) => resource.uri.startsWith("recipes://personal")));
@@ -143,7 +145,7 @@ test("advertises only capabilities configured in the application service", async
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
   try {
-    assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name), ["get_recipe"]);
+    assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name), ["list_recipes", "get_recipe"]);
   } finally {
     await Promise.all([client.close(), server.close()]);
   }
