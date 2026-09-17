@@ -79,6 +79,11 @@ For every GitHub issue or pull request, follow [docs/ISSUES.md](docs/ISSUES.md).
 It is the mandatory source of truth for issue structure, metadata, labels,
 dependencies, pull request titles, linking, and verification.
 
+Implementation pull requests are linked to their issues through GitHub's native
+Development relationship. A textual mention, comment, or Strategy Project item
+is not a substitute. Do not add an implementation pull request to the Strategy
+Project unless it independently needs planning or status tracking.
+
 ## Git commits
 
 For every commit, follow [docs/REPOSITORY.md](docs/REPOSITORY.md).
@@ -121,6 +126,8 @@ Then verify all of the following:
   isolated `RECIPES_DATA_DIRECTORY`.
 - The relevant files under `docs/` describe the final behavior and no resolved
   gap remains documented as open.
+- Every linked issue shows the pull request in its `Linked pull requests` field;
+  verify this after creating or merging the pull request as applicable.
 
 Do not push generated bundles that differ from their current source, uncommitted
 user changes, or architecture changes that have not been documented.

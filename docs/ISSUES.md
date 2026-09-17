@@ -281,9 +281,13 @@ with a lowercase letter; retain capitalization for proper names and acronyms.
 
 ## Pull request links
 
-A pull request that fully implements an issue must link to it in the pull
-request description as soon as the pull request is created. Add a standalone
-line using a supported closing keyword, for example:
+A textual issue mention does not create a Development relationship. Do not add
+implementation pull requests as items to the Strategy planning project unless
+they need independent planning or status tracking.
+
+When one pull request fully implements an issue, link it in the pull request
+description as soon as it is created with a standalone supported closing
+keyword, for example:
 
 ```text
 Closes #123
@@ -301,10 +305,15 @@ Before merging, verify the relationship with:
 gh pr view <number> --json closingIssuesReferences
 ```
 
-If a pull request relates to an issue but must not close it, manually link the
-pull request and issue in GitHub's **Development** sidebar instead. Do this
-before merging; changing the description of an already merged pull request does
-not reliably create a retrospective Development link.
+When a merged pull request partially implements an issue that must remain open,
+add the Development reference afterwards through the GitHub GraphQL
+`addCloseIssueReferences` mutation. Read the issue back: it must retain its
+intended state and list the pull request in `closedByPullRequestsReferences`.
+Do not use comments or body mentions as evidence.
+
+For every linked pull request, verify the issue's Development relationship in
+the `Linked pull requests` field. Pull requests are not added as separate
+Strategy Project items merely to create this relationship.
 
 ## Issue creation and metadata procedure
 
