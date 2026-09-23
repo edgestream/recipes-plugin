@@ -35,8 +35,8 @@ export function createRecipesMcpHttpServer(factory: McpServerFactory, options: R
         writeResponse(response, new Response(JSON.stringify({ status: "ok" }), { headers: { "content-type": "application/json; charset=utf-8" } }));
         return;
       }
-      if ((request.url ?? "").split("?", 1)[0] === "/.well-known/oauth-protected-resource" && options.authentication) {
-        writeResponse(response, Response.json({ resource: options.authentication.resource, authorization_servers: [options.authentication.issuer] }));
+      if (isProtectedResourceMetadataRequest(request.url, options.path ?? "/mcp") && options.authentication) {
+        writeResponse(response, protectedResourceMetadataResponse(request, options.authentication));
         return;
       }
       if ((request.url ?? "").split("?", 1)[0] !== path) {
@@ -73,6 +73,7 @@ async function authenticate(request: Request, authentication: NonNullable<Recipe
   let principal: VerifiedRecipesPrincipal;
   try { principal = await authentication.verifier.verify(token, request.signal); }
   catch { return challenge(authentication.resource); }
+  if (!validPrincipal(principal, authentication.issuer)) return challenge(authentication.resource);
   const requiredScope = body?.method === "tools/call" && (body.params?.name === "import_recipe" || body.params?.name === "delete_recipe") ? "recipes:write" : "recipes:read";
   if (!principal.scopes.includes(requiredScope)) return new Response("Insufficient scope.", { status: 403, headers: { "www-authenticate": `Bearer resource_metadata="${protectedResourceMetadataUrl(authentication.resource)}", error="insufficient_scope", scope="${requiredScope}"` } });
   return {
@@ -96,6 +97,33 @@ function challenge(resource: string): Response {
 function protectedResourceMetadataUrl(resource: string): string {
   const url = new URL(resource);
   return new URL("/.well-known/oauth-protected-resource", url.origin).href;
+}
+
+function validPrincipal(value: VerifiedRecipesPrincipal, issuer: string): boolean {
+  return value.issuer === new URL(issuer).href
+    && typeof value.subject === "string" && value.subject.length > 0
+    && Array.isArray(value.scopes) && value.scopes.every((scope) => typeof scope === "string" && scope.length > 0)
+    && typeof value.expiresAt === "number" && Number.isFinite(value.expiresAt) && value.expiresAt > Date.now() / 1_000;
+}
+
+function isProtectedResourceMetadataRequest(requestUrl: string | undefined, path: string): boolean {
+  const requestPath = (requestUrl ?? "").split("?", 1)[0];
+  // The adapter contract publishes the origin-level URL. The SDK's path-aware
+  // form is also served so current RFC 9728 clients can discover the same document.
+  return requestPath === "/.well-known/oauth-protected-resource"
+    || requestPath === `/.well-known/oauth-protected-resource${path === "/" ? "" : path}`;
+}
+
+function protectedResourceMetadataResponse(request: IncomingMessage, authentication: NonNullable<RecipesMcpHttpOptions["authentication"]>): Response {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return new Response("Method not allowed.", { status: 405, headers: { allow: "GET, HEAD" } });
+  }
+  const result = Response.json({
+    resource: authentication.resource,
+    authorization_servers: [authentication.issuer],
+    scopes_supported: ["recipes:read", "recipes:write"],
+  });
+  return request.method === "HEAD" ? new Response(null, { status: result.status, headers: result.headers }) : result;
 }
 
 function toWebRequest(request: IncomingMessage, signal: AbortSignal, bodyLimit: number): Request {

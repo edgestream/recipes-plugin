@@ -91,10 +91,13 @@ limits belong in the package README, not in this general architecture document.
 The runtime reads process configuration and constructs the concrete local
 application. Both executable frontends use the same runtime so environment and
 adapter behavior cannot drift. Hosted HTTP composition receives only an already
-verified adapter `(issuer, subject)` principal and derives an opaque SHA-256
-namespace below its mounted data root. OAuth stays in the HTTP adapter; core,
-CLI, and stdio remain OAuth-independent. Changing issuer is an explicit owner
-migration, never an automatic email-based merge.
+verified, unexpired adapter `(issuer, subject)` principal and derives an opaque
+SHA-256 namespace below its mounted data root. OAuth stays in the HTTP adapter;
+core, CLI, and stdio remain OAuth-independent. The HTTP adapter creates that
+runtime only after every data-bearing request passes fresh verification and its
+operation scope check; public initialization and tool-schema discovery do not
+read or write a collection. Changing issuer is an explicit owner migration,
+never an automatic email-based merge.
 
 The runtime has an explicit, static provider registry. It constructs only the
 provider packages declared as runtime dependencies; it never discovers packages
