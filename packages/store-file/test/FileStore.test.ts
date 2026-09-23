@@ -107,3 +107,67 @@ test("deletes only the selected owned recipe", async () => {
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("makes hosted-style automatic imports idempotent by canonical source across concurrent requests and restart", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "recipes-store-"));
+  try {
+    const recipe = { "@type": "Recipe", name: "Idempotent", description: "" };
+    const provenance = { source: { value: "https://EXAMPLE.test:443/recipes/one" } };
+    const firstStore = new FileStore(directory, "personal", { idempotentSourceImports: true });
+    const first = await firstStore.create(recipe, { provenance });
+    const restartedStore = new FileStore(directory, "personal", { idempotentSourceImports: true });
+    const imports = await Promise.all([
+      restartedStore.create(recipe, { provenance: { source: { value: "https://example.test/recipes/one" } } }),
+      new FileStore(directory, "personal", { idempotentSourceImports: true }).create(recipe, { provenance }),
+    ]);
+
+    assert.deepEqual(imports.map((record) => record.ref), [first.ref, first.ref]);
+    assert.equal((await restartedStore.list()).items.length, 1);
+    assert.equal((await restartedStore.get(first.ref))?.provenance?.source.value, provenance.source.value);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("keeps distinct sources and collections separate when hosted source idempotency is enabled", async () => {
+  const root = await mkdtemp(join(tmpdir(), "recipes-store-"));
+  try {
+    const recipe = { "@type": "Recipe", name: "Separate", description: "" };
+    const firstAccount = new FileStore(join(root, "account-a"), "personal", { idempotentSourceImports: true });
+    const secondAccount = new FileStore(join(root, "account-b"), "personal", { idempotentSourceImports: true });
+    const source = { provenance: { source: { value: "https://example.test/recipes/one" } } };
+
+    const a = await firstAccount.create(recipe, source);
+    const b = await secondAccount.create(recipe, source);
+    const another = await firstAccount.create(recipe, { provenance: { source: { value: "https://example.test/recipes/two" } } });
+
+    assert.deepEqual(a.ref, b.ref);
+    assert.notEqual(another.ref.id, a.ref.id);
+    assert.equal((await firstAccount.list()).items.length, 2);
+    assert.equal((await secondAccount.list()).items.length, 1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("treats explicit ids as intentional creates and permits re-import after deletion", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "recipes-store-"));
+  try {
+    const store = new FileStore(directory, "personal", { idempotentSourceImports: true });
+    const recipe = { "@type": "Recipe", name: "Explicit", description: "" };
+    const options = { provenance: { source: { value: "https://example.test/recipes/explicit" } } };
+    const automatic = await store.create(recipe, options);
+
+    await assert.rejects(store.create(recipe, { ...options, id: automatic.ref.id }), RecipeConflictError);
+    const explicit = await store.create(recipe, { ...options, id: "intentional-copy" });
+    assert.equal(explicit.ref.id, "intentional-copy");
+    await store.delete(automatic.ref);
+    await store.delete(explicit.ref);
+    const reimported = await store.create(recipe, options);
+
+    assert.equal(reimported.ref.id, automatic.ref.id);
+    assert.equal((await store.list()).items.length, 1);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

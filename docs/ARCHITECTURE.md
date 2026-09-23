@@ -105,6 +105,17 @@ it is absent, every provider known to the runtime registry is active. An explici
 empty value enables no additional providers. The personal file provider is always
 active because it owns the import target and enumerable index.
 
+Hosted collections additionally enable source idempotency. For an import without
+an explicit personal ID, the file store compares the URL resolver's final,
+canonical source URL with persisted provenance in that account's namespace. A
+match returns the existing record; it does not create or refresh a second
+record. The check and creation share the collection's write serialization, so
+concurrent requests in the single-writer hosted process have the same result,
+and provenance survives a normal process restart. This is scoped to each opaque
+issuer/subject namespace: equal sources in different accounts remain separate.
+Local CLI and stdio collections retain their existing non-idempotent import
+behavior.
+
 `CombinedCatalog` is a reusable runtime composition adapter for a known set of
 providers. It lists through one designated catalog, routes `get` by provider ID,
 and runs search in parallel. Its result order follows provider registration order;
@@ -180,6 +191,14 @@ database, and cache adapters must test the catalog capabilities they implement.
 Personal recipes are raw schema.org Recipe JSON files. Users must be able to copy,
 rename, and edit them without running an import command and without updating a
 metadata index.
+
+An imported record may have an adjacent optional `<id>.personal.json` provenance
+sidecar. It records only the import source and is not a recipe, catalog index, or
+requirement for manually managed JSON files. Hosted source idempotency consults
+only valid sidecars; missing, malformed, or legacy sidecars are left untouched
+and cannot be deduplicated automatically. Deleting a managed record removes its
+sidecar. This preserves direct editing and avoids assigning or cleaning up
+existing user data.
 
 Required directory collection semantics are:
 

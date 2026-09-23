@@ -32,6 +32,11 @@ const directoryWrites = new Map<string, Promise<void>>();
 export interface FileStoreOptions {
   /** Optional aggregate byte limit for one directly editable collection. */
   readonly maxBytes?: number;
+  /**
+   * Return an existing automatically named record when its persisted source
+   * provenance has the same canonical URL. Intended for hosted collections.
+   */
+  readonly idempotentSourceImports?: boolean;
 }
 
 /** A read/write recipe catalog backed by directly editable `<id>.json` files. */
@@ -40,6 +45,7 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, Rec
   readonly #provider: string;
 
   readonly #maxBytes: number | undefined;
+  readonly #idempotentSourceImports: boolean;
 
   constructor(directory = "./data", provider = "personal", options: FileStoreOptions = {}) {
     assertProviderId(provider);
@@ -47,33 +53,47 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, Rec
     this.#directory = directory;
     this.#provider = provider;
     this.#maxBytes = options.maxBytes;
+    this.#idempotentSourceImports = options.idempotentSourceImports ?? false;
   }
 
   async create(recipe: RecipeDocument, options?: CreateRecipeOptions, context?: RequestContext): Promise<RecipeRecord> {
     context?.signal?.throwIfAborted();
     assertRecipeDocument(recipe);
-    const id = options?.id ?? await this.#idFor(recipe, options);
-    assertRecipeId(id);
     const document = normalizeRecipeDocument(recipe);
     const encoded = Buffer.from(`${JSON.stringify(document, null, 2)}\n`, "utf8");
+    let created: RecipeRecord | undefined;
     await exclusiveDirectoryWrite(this.#directory, async () => {
       context?.signal?.throwIfAborted();
+      if (this.#idempotentSourceImports && options?.id === undefined) {
+        const existing = await this.#findBySource(options?.provenance?.source.value);
+        if (existing !== undefined) {
+          created = existing;
+          return;
+        }
+      }
+      const id = options?.id ?? await this.#idFor(recipe, options);
+      assertRecipeId(id);
       await mkdir(this.#directory, { recursive: true });
       if (this.#maxBytes !== undefined && await this.#usedBytes() + encoded.byteLength > this.#maxBytes) throw new Error("Personal recipe collection quota exceeded.");
       const target = this.#pathFor(id);
       const temporary = `${target}.${randomUUID()}.tmp`;
+      let published = false;
       try {
         await writeFile(temporary, encoded, { flag: "wx", signal: context?.signal });
         context?.signal?.throwIfAborted();
         await link(temporary, target);
+        published = true;
+        await this.#writeProvenance(id, options?.provenance, context);
       } catch (error: unknown) {
+        if (published) await unlink(target).catch(() => undefined);
         if (isExisting(error)) throw new RecipeConflictError(`A recipe with id ${id} already exists.`);
         throw error;
       } finally {
         await unlink(temporary).catch(() => undefined);
       }
+      created = record(this.#provider, id, document, options);
     });
-    return record(this.#provider, id, document, options);
+    return created!;
   }
 
   async delete(ref: RecipeRef, context?: RequestContext): Promise<void> {
@@ -82,12 +102,17 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, Rec
       throw new UnsupportedRecipeCapabilityError(`Recipe deletion is not available for provider ${ref.provider}.`);
     }
     assertRecipeId(ref.id);
-    try {
-      await unlink(this.#pathFor(ref.id));
-    } catch (error: unknown) {
-      if (isMissing(error)) throw new RecipeNotFoundError(`Recipe ${ref.provider}/${ref.id} was not found.`);
-      throw error;
-    }
+    await exclusiveDirectoryWrite(this.#directory, async () => {
+      try {
+        await unlink(this.#pathFor(ref.id));
+      } catch (error: unknown) {
+        if (isMissing(error)) throw new RecipeNotFoundError(`Recipe ${ref.provider}/${ref.id} was not found.`);
+        throw error;
+      }
+      await unlink(this.#provenancePathFor(ref.id)).catch((error: unknown) => {
+        if (!isMissing(error)) throw error;
+      });
+    });
   }
 
   async get(ref: RecipeRef, context?: RequestContext): Promise<RecipeRecord | undefined> {
@@ -96,7 +121,7 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, Rec
     assertRecipeId(ref.id);
     try {
       const document = await this.#read(ref.id, context);
-      return record(this.#provider, ref.id, document);
+      return record(this.#provider, ref.id, document, provenanceOptions(await this.#readProvenance(ref.id)));
     } catch (error: unknown) {
       if (isMissing(error)) return undefined;
       throw error;
@@ -170,12 +195,56 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, Rec
     return join(this.#directory, `${id}.json`);
   }
 
+  #provenancePathFor(id: string): string {
+    assertRecipeId(id);
+    return join(this.#directory, `${id}.personal.json`);
+  }
+
   async #read(id: string, context?: RequestContext): Promise<RecipeDocument> {
     const value: unknown = JSON.parse(await readFile(this.#pathFor(id), {
       encoding: "utf8",
       signal: context?.signal,
     }));
     return normalizeRecipeDocument(value);
+  }
+
+  async #findBySource(source: string | undefined): Promise<RecipeRecord | undefined> {
+    const canonical = canonicalSource(source);
+    if (canonical === undefined) return undefined;
+    for (const id of await this.#ids()) {
+      const provenance = await this.#readProvenance(id);
+      if (canonicalSource(provenance?.source.value) === canonical) {
+        return record(this.#provider, id, await this.#read(id), provenanceOptions(provenance));
+      }
+    }
+    return undefined;
+  }
+
+  async #readProvenance(id: string): Promise<CreateRecipeOptions["provenance"] | undefined> {
+    try {
+      const value: unknown = JSON.parse(await readFile(this.#provenancePathFor(id), "utf8"));
+      if (!isProvenance(value)) return undefined;
+      return value;
+    } catch (error: unknown) {
+      if (isMissing(error) || error instanceof SyntaxError) return undefined;
+      throw error;
+    }
+  }
+
+  async #writeProvenance(id: string, provenance: CreateRecipeOptions["provenance"], context?: RequestContext): Promise<void> {
+    if (provenance === undefined) return;
+    const target = this.#provenancePathFor(id);
+    const temporary = `${target}.${randomUUID()}.tmp`;
+    await unlink(target).catch((error: unknown) => {
+      if (!isMissing(error)) throw error;
+    });
+    try {
+      await writeFile(temporary, `${JSON.stringify(provenance, null, 2)}\n`, { flag: "wx", signal: context?.signal });
+      context?.signal?.throwIfAborted();
+      await link(temporary, target);
+    } finally {
+      await unlink(temporary).catch(() => undefined);
+    }
   }
 }
 
@@ -195,6 +264,10 @@ async function exclusiveDirectoryWrite(directory: string, operation: () => Promi
 function record(provider: string, id: string, document: RecipeDocument, options?: CreateRecipeOptions): RecipeRecord {
   const base = { ref: { provider, id }, document: cloneJson(document) };
   return options?.provenance === undefined ? base : { ...base, provenance: options.provenance };
+}
+
+function provenanceOptions(provenance: CreateRecipeOptions["provenance"]): CreateRecipeOptions | undefined {
+  return provenance === undefined ? undefined : { provenance };
 }
 
 function summary(provider: string, id: string, document: RecipeDocument): RecipeSummary {
@@ -227,6 +300,18 @@ function pageLimit(limit?: number): number {
 
 function isRecipeFile(name: string): boolean {
   return name.endsWith(".json") && !name.endsWith(".personal.json");
+}
+
+function isProvenance(value: unknown): value is NonNullable<CreateRecipeOptions["provenance"]> {
+  return typeof value === "object" && value !== null
+    && "source" in value
+    && typeof value.source === "object" && value.source !== null
+    && "value" in value.source && typeof value.source.value === "string";
+}
+
+function canonicalSource(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  try { return new URL(value).href; } catch { return value; }
 }
 
 function stemFromReference(value: string): string | undefined {
