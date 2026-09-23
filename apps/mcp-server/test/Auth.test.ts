@@ -48,6 +48,7 @@ test("rejects inactive, expired, malformed, wrong-resource, direct-ID, and servi
     active({ iss: "https://hydra.example/" }),
     active({ sub: "" }),
     active({ token_type: "id_token" }),
+    active({ token_type: "client_credentials" }),
     active({ scope: 42 }),
     active({ exp: undefined }),
     { active: true },
