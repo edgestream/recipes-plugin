@@ -2,7 +2,7 @@ import { RecipesService } from "@edgestream/recipes-application";
 import { ChefkochCatalog } from "@edgestream/recipes-provider-chefkoch";
 import type { RecipeResolver } from "@edgestream/recipes-core";
 import { UrlSource, type UrlSourceOptions } from "@edgestream/recipes-source-url";
-import { FileStore } from "@edgestream/recipes-store-file";
+import { FileStore, type FileStoreOptions } from "@edgestream/recipes-store-file";
 import { CombinedCatalog, type RecipeProvider } from "./CombinedCatalog.js";
 import { localRecipesConfiguration, type LocalRecipesConfiguration } from "./configuration.js";
 import { personalStorageNamespace } from "./hosted.js";
@@ -34,9 +34,13 @@ export interface HostedRecipesOptions extends Omit<LocalRecipesOptions, "dataDir
 
 /** Creates the shared local runtime used by both executable frontends. */
 export function createLocalRecipes(options: LocalRecipesOptions = {}): LocalRecipesRuntime {
+  return createRecipes(options);
+}
+
+function createRecipes(options: LocalRecipesOptions, storeOptions: FileStoreOptions = {}): LocalRecipesRuntime {
   const defaults = localRecipesConfiguration();
   const provider = options.provider ?? defaults.provider;
-  const store = new FileStore(options.dataDirectory ?? defaults.dataDirectory, "personal");
+  const store = new FileStore(options.dataDirectory ?? defaults.dataDirectory, "personal", storeOptions);
   const source = new UrlSource(options.source);
   const additionalProviders = "providers" in options ? options.providers : defaults.providers;
   const providers = selectProviders(
@@ -60,11 +64,11 @@ export function createLocalRecipes(options: LocalRecipesOptions = {}): LocalReci
 
 /** Creates an isolated personal runtime. This is intentionally not used by CLI or stdio. */
 export function createHostedRecipes(options: HostedRecipesOptions): LocalRecipesRuntime {
-  return createLocalRecipes({
+  return createRecipes({
     ...options,
     dataDirectory: join(options.dataRoot, personalStorageNamespace(options.principal.issuer, options.principal.subject)),
     source: { ...options.source, hostedPublic: true, allowedHosts: options.publicImportHosts ?? [] },
-  });
+  }, { idempotentSourceImports: true });
 }
 
 function providerRegistry(store: FileStore, resolver: RecipeResolver): ReadonlyMap<string, () => LocalRecipeProvider> {

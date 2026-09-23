@@ -97,8 +97,9 @@ The configured runtime exposes these tools:
 - `search_recipes`: paged free-text search returning recipe `ResourceLink` values;
 - `get_recipe`: complete schema.org Recipe retrieval by provider and provider-local
   ID;
-- `import_recipe`: non-idempotent import from a `recipes://` URI, path, file URI,
-  HTTP URL, or HTTPS URL, with an optional stable personal ID.
+- `import_recipe`: imports from a `recipes://` URI, path, file URI, HTTP URL, or
+  HTTPS URL, with an optional stable personal ID. Local CLI and stdio imports are
+  non-idempotent; hosted automatic imports are idempotent by canonical source.
 - `delete_recipe`: permanently delete one recipe by provider and provider-local ID
   when the configured runtime supports deletion.
 
@@ -169,15 +170,25 @@ cursors.
   rejected before a catalog read.
 - `get_recipe` returns an MCP error result when the recipe is missing.
 - Reading a missing concrete resource raises a resource-read error.
-- Import is marked non-read-only and non-idempotent.
+- Import is marked non-read-only. Local CLI and stdio imports remain
+  non-idempotent: repeated automatic imports may receive suffixed IDs. In hosted
+  mode, an import without `id` that resolves to a source already imported in the
+  same verified account returns the original personal record instead of creating
+  another one. Source equality uses the URL resolver's final canonical URL after
+  accepted redirects, and never crosses account namespaces.
 - Importing a `recipes://` URI reads that provider's recipe and passes the
   retrieved provenance to the personal writer.
 - Deletion is marked non-read-only and destructive. A runtime without deletion
   capability does not advertise `delete_recipe`.
 - Deletion for a provider not configured with a deleter returns an unsupported
   capability error; deleting a missing owned recipe returns a not-found error.
-- Repeated automatic imports may receive suffixed IDs; an explicit conflicting ID
-  is an error.
+- An explicit ID is always a create request: a conflicting explicit ID is an
+  error, while a different explicit ID deliberately creates a separate record
+  even for an already imported source. Deleting an automatic record removes its
+  stored provenance, so a later automatic import creates it again when no other
+  record for that source remains. Hosted
+  idempotency applies only to records with valid persisted provenance; legacy or
+  manually edited records are never rewritten or inferred from schema.org URLs.
 - Provider, network, parsing, size, timeout, and storage errors remain observable;
   do not silently fall back to another provider or the web.
 
