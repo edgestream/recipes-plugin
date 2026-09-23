@@ -57,12 +57,15 @@ request work through the SDK and does not write the personal store itself.
 
 A remotely reachable HTTP listener requires `RECIPES_MCP_OAUTH_RESOURCE` and
 the private adapter-verifier configuration. It publishes protected-resource
-metadata at `/.well-known/oauth-protected-resource`; initialization and tool
-schema discovery remain public, while resources and every tool call require a
-bearer token. The adapter is the only token authority: Recipes sends the token
-to its cluster-private introspection endpoint and fails closed for an outage,
-inactive token, unexpected issuer, non-exact audience, missing subject, or
-scope failure. It never accepts a Hydra token directly or identity headers.
+metadata at the deployed adapter-contract URL
+`/.well-known/oauth-protected-resource` and also serves the SDK's path-aware
+`/.well-known/oauth-protected-resource/mcp` form. Initialization and tool-schema
+discovery remain public, while resources and every tool call require a bearer
+token. The adapter is the only token authority: Recipes sends the token to its
+cluster-private introspection endpoint and fails closed for an outage, inactive
+or expired token, unexpected issuer, non-exact audience, missing human subject,
+invalid token type, or scope failure. It never accepts a Hydra token directly or
+identity/proxy headers.
 
 | Variable | Meaning |
 | --- | --- |
@@ -73,14 +76,23 @@ scope failure. It never accepts a Hydra token directly or identity headers.
 | `RECIPES_HOSTED_DATA_ROOT` | Writable mounted root for opaque per-user stores. |
 | `RECIPES_HOSTED_IMPORT_ALLOWED_HOSTS` | Space-separated, operator-approved public recipe hostnames; empty disables direct hosted URL imports. |
 
+Protected-resource metadata names the exact canonical resource and issuer and
+advertises `recipes:read` and `recipes:write`. Every 401 or 403 includes an RFC
+Bearer challenge pointing at the deployed metadata URL; a missing, expired,
+revoked, malformed, wrong-resource, or unavailable-verifier token receives a
+401 `invalid_token`, while a valid token missing the operation's scope receives
+a 403 `insufficient_scope` with the required scope. This lets a host reauthorize
+at the point of a tool call.
+
 Read operations (`list_recipes`, search, get, resources) require
 `recipes:read`; import and deletion require `recipes:write`. The runtime derives
 each mounted-store directory from SHA-256 of the verified `(issuer, subject)`
 pair. It never uses email, client ID, a session identifier, a forwarded header,
 or a tool argument. CLI and stdio retain their trusted single-directory mode.
 
-The Ory adapter currently has implementation evidence but its complete live
-two-user qualification remains open in Strategy #10 and the Recipes pilot #33.
+The development pilot's bounded two-account qualification is recorded in #36.
+Release lifecycle, scale, backup/restore, and broader-host qualification remain
+separate controlled-release work; they are not implied by the development pilot.
 
 Hosted imports are a deliberately narrower mode than CLI/stdio: paths, `file:`
 URLs, credentials in URLs, non-HTTP(S) protocols, redirects beyond three hops,

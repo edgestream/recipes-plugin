@@ -3,6 +3,8 @@ export interface VerifiedRecipesPrincipal {
   readonly issuer: string;
   readonly subject: string;
   readonly scopes: readonly string[];
+  /** Unix epoch seconds, copied from the adapter's active introspection result. */
+  readonly expiresAt: number;
 }
 
 export interface RecipesTokenVerifier {
@@ -49,14 +51,26 @@ export class IntrospectionVerifier implements RecipesTokenVerifier {
     if (!isActiveToken(value) || value.iss !== this.#issuer || !exactAudience(value.aud, this.#resource)) {
       throw new Error("The access token is not valid for Recipes.");
     }
-    return { issuer: value.iss, subject: value.sub, scopes: (value as { scope: string }).scope.split(/\s+/u).filter(Boolean) };
+    return {
+      issuer: value.iss,
+      subject: value.sub,
+      scopes: value.scope.split(/\s+/u).filter(Boolean),
+      expiresAt: value.exp,
+    };
   }
 }
 
-function isActiveToken(value: unknown): value is { active: true; iss: string; sub: string; aud: unknown; scope: string } {
+function isActiveToken(value: unknown): value is { active: true; iss: string; sub: string; aud: unknown; scope: string; exp: number; token_type?: string } {
   if (typeof value !== "object" || value === null) return false;
   const token = value as Record<string, unknown>;
-  return token.active === true && typeof token.iss === "string" && typeof token.sub === "string" && token.sub.length > 0 && typeof token.scope === "string";
+  return token.active === true
+    && typeof token.iss === "string"
+    && typeof token.sub === "string" && token.sub.length > 0
+    && typeof token.scope === "string"
+    && typeof token.exp === "number" && Number.isFinite(token.exp) && token.exp > Date.now() / 1_000
+    // The deployed opaque-token adapter need not emit token_type. If it does,
+    // accept only an access-token bearer type; an ID token is never a Recipes credential.
+    && (token.token_type === undefined || token.token_type === "Bearer");
 }
 
 function exactAudience(value: unknown, expected: string): boolean {

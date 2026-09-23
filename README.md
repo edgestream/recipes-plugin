@@ -70,6 +70,6 @@ Provider package design and contribution guidance is in
 [docs/PROVIDER.md](docs/PROVIDER.md).
 
 The container image runs the HTTP bundle as a non-root user and expects a
-writable `/data` mount. It is not suitable for public exposure until adapter
-verification and the hosted deployment gates are configured; see
-[docs/MCP.md](docs/MCP.md).
+writable `/data` mount. Public exposure requires the adapter verifier and
+hosted deployment configuration described in [docs/MCP.md](docs/MCP.md); local
+CLI and stdio remain independent of OAuth.

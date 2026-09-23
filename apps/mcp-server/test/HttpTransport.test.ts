@@ -63,6 +63,7 @@ test("requires recipes:read for hosted personal listing", async () => {
         issuer: "https://auth.example/",
         subject: token,
         scopes: token === "read-token" ? ["recipes:read"] : ["recipes:write"],
+        expiresAt: Math.floor(Date.now() / 1_000) + 60,
       };
     },
   };
@@ -91,12 +92,137 @@ test("requires recipes:read for hosted personal listing", async () => {
     assert.equal(insufficient.status, 403);
     assert.match(insufficient.headers.get("www-authenticate") ?? "", /scope="recipes:read"/u);
 
+    const writeRequired = await fetch(endpoint, {
+      method: "POST",
+      headers: { authorization: "Bearer read-token", "content-type": "application/json", accept: "application/json, text/event-stream" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "import_recipe", arguments: { source: "https://fixture.example/recipe" } } }),
+    });
+    assert.equal(writeRequired.status, 403);
+    assert.match(writeRequired.headers.get("www-authenticate") ?? "", /scope="recipes:write"/u);
+
     const listed = await fetch(endpoint, {
       method: "POST",
       headers: { authorization: "Bearer read-token", "content-type": "application/json", accept: "application/json, text/event-stream" },
       body: request,
     });
     assert.equal(listed.status, 200);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error === undefined ? resolve() : reject(error)));
+  }
+});
+
+test("fails closed before creating a hosted runtime and ignores forged identity and proxy headers", async () => {
+  let factoryCalls = 0;
+  let verifierCalls = 0;
+  const verifier: RecipesTokenVerifier = {
+    async verify(token) {
+      verifierCalls++;
+      if (token === "revoked" || token === "unavailable" || token === "not-a-real-token") throw new Error("not active");
+      return {
+        issuer: "https://auth.example/",
+        subject: token === "expired" ? "account-a" : "account-b",
+        scopes: ["recipes:read", "recipes:write"],
+        expiresAt: token === "expired" ? Math.floor(Date.now() / 1_000) - 1 : Math.floor(Date.now() / 1_000) + 60,
+      };
+    },
+  };
+  const server = createRecipesMcpHttpServer(() => {
+    factoryCalls++;
+    const recipes = new RecipesService({ catalog: new MemoryStore() });
+    return createRecipesMcpServer({
+      recipes,
+      providers: [{ id: "personal", title: "Personal recipes", enumerateResources: true }],
+      defaultProvider: "personal",
+    });
+  }, {
+    host: "127.0.0.1",
+    port: 0,
+    allowedHosts: ["127.0.0.1", "localhost"],
+    allowedOrigins: ["trusted.example"],
+    authentication: { resource: "https://recipes.example/mcp", issuer: "https://auth.example/", verifier },
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  const endpoint = new URL(`http://127.0.0.1:${address.port}/mcp`);
+  const list = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "resources/list", params: {} });
+  try {
+    for (const headers of [
+      { "content-type": "application/json" },
+      { authorization: "Bearer expired", "content-type": "application/json" },
+      { authorization: "Bearer revoked", "content-type": "application/json" },
+      { authorization: "Bearer unavailable", "content-type": "application/json" },
+      { authorization: "Bearer not-a-real-token", "x-recipes-subject": "account-a", "x-forwarded-user": "account-a", "content-type": "application/json" },
+    ]) {
+      const response = await fetch(endpoint, { method: "POST", headers, body: list });
+      assert.equal(response.status, 401);
+      assert.match(response.headers.get("www-authenticate") ?? "", /resource_metadata="https:\/\/recipes\.example\/.well-known\/oauth-protected-resource"/u);
+    }
+    assert.equal(factoryCalls, 0);
+    assert.equal(verifierCalls, 4);
+
+    const spoofedProxy = await fetch(endpoint, {
+      method: "POST",
+      headers: { host: "attacker.example", "x-forwarded-host": "127.0.0.1", "x-forwarded-proto": "https", "content-type": "application/json" },
+      body: list,
+    });
+    assert.notEqual(spoofedProxy.status, 200);
+    assert.equal(factoryCalls, 0);
+
+    const wrongOrigin = await fetch(endpoint, {
+      method: "POST",
+      headers: { authorization: "Bearer account-b", origin: "https://attacker.example", "content-type": "application/json" },
+      body: list,
+    });
+    assert.notEqual(wrongOrigin.status, 200);
+    assert.equal(factoryCalls, 0);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error === undefined ? resolve() : reject(error)));
+  }
+});
+
+test("publishes protected-resource metadata and keeps only initialization and schemas public", async () => {
+  let verifierCalls = 0;
+  const verifier: RecipesTokenVerifier = {
+    async verify() {
+      verifierCalls++;
+      return { issuer: "https://auth.example/", subject: "account", scopes: ["recipes:read"], expiresAt: Math.floor(Date.now() / 1_000) + 60 };
+    },
+  };
+  const recipes = new RecipesService({ catalog: new MemoryStore() });
+  const server = createRecipesMcpHttpServer(() => createRecipesMcpServer({
+    recipes,
+    providers: [{ id: "personal", title: "Personal recipes", enumerateResources: true }],
+    defaultProvider: "personal",
+  }), {
+    host: "127.0.0.1", port: 0, allowedHosts: ["127.0.0.1", "localhost"], allowedOrigins: [],
+    authentication: { resource: "https://recipes.example/mcp", issuer: "https://auth.example/", verifier },
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  const origin = `http://127.0.0.1:${address.port}`;
+  try {
+    for (const suffix of ["/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"]) {
+      const response = await fetch(`${origin}${suffix}`);
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), {
+        resource: "https://recipes.example/mcp",
+        authorization_servers: ["https://auth.example/"],
+        scopes_supported: ["recipes:read", "recipes:write"],
+      });
+    }
+    const schemas = await fetch(`${origin}/mcp`, {
+      method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
+    });
+    assert.equal(schemas.status, 200);
+    assert.equal(verifierCalls, 0);
+    const resourceEnumeration = await fetch(`${origin}/mcp`, {
+      method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "resources/list", params: {} }),
+    });
+    assert.equal(resourceEnumeration.status, 401);
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => error === undefined ? resolve() : reject(error)));
   }
