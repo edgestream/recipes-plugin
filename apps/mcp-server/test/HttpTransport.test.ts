@@ -5,7 +5,7 @@ import test from "node:test";
 import { RecipesService } from "@edgestream/recipes-application";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { MemoryStore } from "../../../test/support/MemoryStore.js";
-import { createRecipesMcpHttpServer, createRecipesMcpServer } from "../src/index.js";
+import { createRecipesMcpHttpServer, createRecipesMcpServer, type RecipesTokenVerifier } from "../src/index.js";
 
 test("serves the existing Recipes MCP surface through Streamable HTTP", async () => {
   const store = new MemoryStore();
@@ -50,6 +50,54 @@ test("serves the existing Recipes MCP surface through Streamable HTTP", async ()
     assert.equal(oversized.status, 413);
   } finally {
     await client.close();
+    await new Promise<void>((resolve, reject) => server.close((error) => error === undefined ? resolve() : reject(error)));
+  }
+});
+
+test("requires recipes:read for hosted personal listing", async () => {
+  const store = new MemoryStore();
+  const recipes = new RecipesService({ catalog: store });
+  const verifier: RecipesTokenVerifier = {
+    async verify(token) {
+      return {
+        issuer: "https://auth.example/",
+        subject: token,
+        scopes: token === "read-token" ? ["recipes:read"] : ["recipes:write"],
+      };
+    },
+  };
+  const server = createRecipesMcpHttpServer(() => createRecipesMcpServer({
+    recipes,
+    providers: [{ id: "personal", title: "Personal recipes", enumerateResources: true }],
+    defaultProvider: "personal",
+  }), {
+    host: "127.0.0.1",
+    port: 0,
+    allowedHosts: ["127.0.0.1", "localhost"],
+    allowedOrigins: [],
+    authentication: { resource: "https://recipes.example/mcp", issuer: "https://auth.example/", verifier },
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  const endpoint = new URL(`http://127.0.0.1:${address.port}/mcp`);
+  const request = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "list_recipes", arguments: {} } });
+  try {
+    const insufficient = await fetch(endpoint, {
+      method: "POST",
+      headers: { authorization: "Bearer write-token", "content-type": "application/json", accept: "application/json, text/event-stream" },
+      body: request,
+    });
+    assert.equal(insufficient.status, 403);
+    assert.match(insufficient.headers.get("www-authenticate") ?? "", /scope="recipes:read"/u);
+
+    const listed = await fetch(endpoint, {
+      method: "POST",
+      headers: { authorization: "Bearer read-token", "content-type": "application/json", accept: "application/json, text/event-stream" },
+      body: request,
+    });
+    assert.equal(listed.status, 200);
+  } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => error === undefined ? resolve() : reject(error)));
   }
 });

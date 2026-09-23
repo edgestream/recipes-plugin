@@ -1,13 +1,89 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { RecipesService } from "@edgestream/recipes-application";
 import type { RecipeSearch } from "@edgestream/recipes-core";
 import { CombinedCatalog } from "@edgestream/recipes-runtime";
 import { UrlSource } from "@edgestream/recipes-source-url";
+import { FileStore } from "@edgestream/recipes-store-file";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { MemoryStore } from "../../../test/support/MemoryStore.js";
 import { createRecipesMcpServer } from "../src/index.js";
+
+test("lists only the personal collection with bounded pages, usable ids, and an empty state", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "recipes-mcp-list-"));
+  const personal = new FileStore(directory);
+  let externalSearches = 0;
+  const external: RecipeSearch = {
+    async search() {
+      externalSearches += 1;
+      return { items: [] };
+    },
+  };
+  const recipes = new RecipesService({
+    catalog: new CombinedCatalog(personal, [
+      { id: "personal", catalog: personal, search: personal },
+      { id: "external", catalog: { get: async () => undefined, list: async () => ({ items: [] }) }, search: external },
+    ]),
+    search: external,
+    writer: personal,
+    deleter: personal,
+  });
+  const server = createRecipesMcpServer({
+    recipes,
+    defaultProvider: "personal",
+    providers: [
+      { id: "personal", title: "Personal recipes", enumerateResources: true },
+      { id: "external", title: "External recipes", enumerateResources: false },
+    ],
+  });
+  const client = new Client({ name: "recipes-test", version: "0.1.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+
+  try {
+    const tool = (await client.listTools()).tools.find(({ name }) => name === "list_recipes");
+    assert.deepEqual(tool?.annotations, { readOnlyHint: true, destructiveHint: false, openWorldHint: false });
+
+    const empty = await client.callTool({ name: "list_recipes", arguments: {} });
+    assert.deepEqual(empty.structuredContent, { results: [], nextCursor: null, empty: true });
+    assert.equal(externalSearches, 0);
+
+    for (const id of ["apple", "banana", "cherry"]) {
+      await personal.create({ "@type": "Recipe", name: id, description: `${id} recipe` }, { id });
+    }
+    const first = await client.callTool({ name: "list_recipes", arguments: { limit: 2 } });
+    assert.deepEqual(first.structuredContent, {
+      results: [
+        { provider: "personal", id: "apple", name: "apple", description: "apple recipe", uri: "recipes://personal/apple" },
+        { provider: "personal", id: "banana", name: "banana", description: "banana recipe", uri: "recipes://personal/banana" },
+      ],
+      nextCursor: "2",
+      empty: false,
+    });
+    assert.equal(first.content[0]?.type, "resource_link");
+
+    const second = await client.callTool({ name: "list_recipes", arguments: { cursor: "2", limit: 2 } });
+    assert.deepEqual(second.structuredContent, {
+      results: [{ provider: "personal", id: "cherry", name: "cherry", description: "cherry recipe", uri: "recipes://personal/cherry" }],
+      nextCursor: null,
+      empty: false,
+    });
+    assert.equal((await client.callTool({ name: "get_recipe", arguments: { id: "apple" } })).isError, undefined);
+    assert.equal((await client.callTool({ name: "delete_recipe", arguments: { id: "apple" } })).isError, undefined);
+    const invalidCursor = await client.callTool({ name: "list_recipes", arguments: { cursor: "not-a-cursor" } });
+    assert.equal(invalidCursor.isError, true);
+    const invalidLimit = await client.callTool({ name: "list_recipes", arguments: { limit: 101 } });
+    assert.equal(invalidLimit.isError, true);
+    assert.equal(externalSearches, 0);
+  } finally {
+    await Promise.all([client.close(), server.close()]);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test("exposes one MCP server with multiple provider-qualified catalogs", async () => {
   const personal = new MemoryStore();
