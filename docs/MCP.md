@@ -109,11 +109,13 @@ The default runtime exposes:
 - generic recipe template `recipes://{provider}/{id}` for every provider active
   in the runtime registry.
 
-The complete collection is read through the static index resource. A runtime with
+`list_recipes` is the preferred operation for an unfiltered request to list or
+browse the current personal collection, including hosts that do not surface MCP
+resources. It never searches additional providers. The static index resource
+`recipes://personal` remains available to compatible hosts. A runtime with
 additional providers leaves large catalogs non-enumerated. The generic resource
 handler validates the provider against that runtime registry before routing the
-read. An unfiltered request to list or browse a collection uses its static index
-resource; `search_recipes` requires non-empty query terms and is not a collection
+read. `search_recipes` requires non-empty query terms and is not a collection
 listing mechanism. Search results are summary links; callers read the returned
 resource or call `get_recipe` for the complete document.
 
@@ -147,6 +149,17 @@ see the implementation gap in [ARCHITECTURE.md](ARCHITECTURE.md).
 MCP passes its cursor and limit to the provider-facing application request. The
 default limit is 20; callers may request up to 100 results. The cursor is opaque to
 MCP and must not be converted to a global numeric offset.
+
+`list_recipes` returns:
+
+- MCP `resource_link` content for navigation;
+- structured content with `provider`, `id`, `uri`, `name`, `description`,
+  `nextCursor`, and `empty`;
+- `empty: true`, no results, and `nextCursor: null` for an empty personal
+  collection.
+
+The returned `provider` and `id` are accepted by `get_recipe` and, when enabled,
+`delete_recipe`.
 
 Search returns:
 
