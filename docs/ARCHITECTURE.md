@@ -92,7 +92,9 @@ The runtime reads process configuration and constructs the concrete local
 application. Both executable frontends use the same runtime so environment and
 adapter behavior cannot drift. Hosted HTTP composition receives only an already
 verified, unexpired adapter `(issuer, subject)` principal and derives an opaque
-SHA-256 namespace below its mounted data root. OAuth stays in the HTTP adapter;
+SHA-256 namespace below its mounted data root. The hosted file store rejects a
+symbolic-link collection root and opens recipe and provenance files without
+following symbolic links. OAuth stays in the HTTP adapter;
 core, CLI, and stdio remain OAuth-independent. The HTTP adapter creates that
 runtime only after every data-bearing request passes fresh verification and its
 operation scope check; public initialization and tool-schema discovery do not
@@ -118,6 +120,15 @@ and provenance survives a normal process restart. This is scoped to each opaque
 issuer/subject namespace: equal sources in different accounts remain separate.
 Local CLI and stdio collections retain their existing non-idempotent import
 behavior.
+
+Hosted collections have a bounded aggregate byte quota (2 MiB by default,
+operator-configurable at composition). The file store serializes creates for one
+directory in the hosted process, calculates the quota before publishing either
+the recipe or its provenance sidecar, writes temporary files exclusively, and
+publishes them by no-clobber hard link. This deliberately requires a
+single-writer mounted volume; horizontal multi-process file-store coordination
+is not implemented. Directly copied files remain editable, but an operator must
+not grant untrusted filesystem write access to the mounted root.
 
 `CombinedCatalog` is a reusable runtime composition adapter for a known set of
 providers. It lists through one designated catalog, routes `get` by provider ID,
@@ -202,6 +213,13 @@ only valid sidecars; missing, malformed, or legacy sidecars are left untouched
 and cannot be deduplicated automatically. Deleting a managed record removes its
 sidecar. This preserves direct editing and avoids assigning or cleaning up
 existing user data.
+
+For a controlled file-store restore, copy only disposable or otherwise
+authorized namespace directories to a separate mounted restore root, then use
+the same verified issuer/subject pair to read them. This validates application
+namespace continuity only; it is not a claim that the OAuth platform, identity
+provider, volume snapshots, or the broader production backup strategy are
+recoverable.
 
 Required directory collection semantics are:
 

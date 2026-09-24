@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
+import { mkdtemp, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { RecipesService } from "@edgestream/recipes-application";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import { createHostedRecipes, personalStorageNamespace } from "@edgestream/recipes-runtime";
+import { FileStore } from "@edgestream/recipes-store-file";
 import { MemoryStore } from "../../../test/support/MemoryStore.js";
 import { createRecipesMcpHttpServer, createRecipesMcpServer, type RecipesTokenVerifier } from "../src/index.js";
 
@@ -108,6 +113,48 @@ test("requires recipes:read for hosted personal listing", async () => {
     assert.equal(listed.status, 200);
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => error === undefined ? resolve() : reject(error)));
+  }
+});
+
+test("scopes hosted HTTP tools, resources, cursors, and records to each verified principal", async () => {
+  const root = await mkdtemp(join(tmpdir(), "recipes-http-identities-"));
+  const issuer = "https://auth.example/";
+  const principalA = { issuer, subject: "account-a" };
+  const principalB = { issuer, subject: "account-b" };
+  const recipe = { "@type": "Recipe", description: "" };
+  await new FileStore(join(root, personalStorageNamespace(issuer, principalA.subject))).create({ ...recipe, name: "Account A" }, { id: "same-id" });
+  await new FileStore(join(root, personalStorageNamespace(issuer, principalB.subject))).create({ ...recipe, name: "Account B" }, { id: "same-id" });
+  const verifier: RecipesTokenVerifier = {
+    async verify(token) {
+      return { ...(token === "a" ? principalA : principalB), scopes: ["recipes:read"], expiresAt: Math.floor(Date.now() / 1_000) + 60 };
+    },
+  };
+  const server = createRecipesMcpHttpServer((context) => {
+    const principal = context.authInfo?.extra?.recipesPrincipal as typeof principalA;
+    const runtime = createHostedRecipes({ dataRoot: root, principal });
+    return createRecipesMcpServer({ recipes: runtime.recipes, providers: runtime.providers, defaultProvider: runtime.provider });
+  }, {
+    host: "127.0.0.1", port: 0, allowedHosts: ["127.0.0.1", "localhost"], allowedOrigins: [],
+    authentication: { resource: "https://recipes.example/mcp", issuer, verifier },
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const endpoint = new URL(`http://127.0.0.1:${(server.address() as AddressInfo).port}/mcp`);
+  try {
+    for (const [token, expected, unexpected] of [["a", "Account A", "Account B"], ["b", "Account B", "Account A"]] as const) {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json", accept: "application/json, text/event-stream" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "resources/read", params: { uri: "recipes://personal/same-id" } }),
+      });
+      assert.equal(response.status, 200);
+      const payload = await response.text();
+      assert.match(payload, new RegExp(expected, "u"));
+      assert.doesNotMatch(payload, new RegExp(unexpected, "u"));
+    }
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error === undefined ? resolve() : reject(error)));
+    await rm(root, { recursive: true, force: true });
   }
 });
 

@@ -5,6 +5,8 @@ import { IntrospectionVerifier, type VerifiedRecipesPrincipal } from "./auth.js"
 
 const loopbackHosts = new Set(["127.0.0.1", "::1", "localhost"]);
 
+const defaultHostedCollectionBytes = 2 * 1024 * 1024;
+
 export async function main(): Promise<void> {
   const host = process.env.RECIPES_MCP_HTTP_HOST ?? "127.0.0.1";
   const port = parsePort(process.env.RECIPES_MCP_HTTP_PORT);
@@ -15,7 +17,12 @@ export async function main(): Promise<void> {
   if (!loopbackHosts.has(host) && authentication === undefined) throw new Error("Remotely reachable Recipes MCP requires OAuth adapter verifier configuration.");
   const server = createRecipesMcpHttpServer((context) => {
     const principal = context.authInfo?.extra?.recipesPrincipal as VerifiedRecipesPrincipal | undefined;
-    const runtime = authentication === undefined || principal === undefined ? createLocalRecipes() : createHostedRecipes({ dataRoot: authentication.dataRoot, principal, publicImportHosts: authentication.publicImportHosts });
+    const runtime = authentication === undefined || principal === undefined ? createLocalRecipes() : createHostedRecipes({
+      dataRoot: authentication.dataRoot,
+      principal,
+      publicImportHosts: authentication.publicImportHosts,
+      maxBytes: authentication.maxBytes,
+    });
     return createRecipesMcpServer({ recipes: runtime.recipes, providers: runtime.providers, defaultProvider: runtime.provider });
   }, {
     host, port, allowedHosts: [host, "localhost", "127.0.0.1", "[::1]", ...(authentication === undefined ? [] : [new URL(authentication.resource).host])],
@@ -39,7 +46,7 @@ export async function main(): Promise<void> {
   process.once("SIGTERM", stop);
 }
 
-function hostedAuthentication(env: NodeJS.ProcessEnv): ({ resource: string; issuer: string; verifier: IntrospectionVerifier; dataRoot: string; publicImportHosts: readonly string[] }) | undefined {
+function hostedAuthentication(env: NodeJS.ProcessEnv): ({ resource: string; issuer: string; verifier: IntrospectionVerifier; dataRoot: string; publicImportHosts: readonly string[]; maxBytes: number }) | undefined {
   const resource = env.RECIPES_MCP_OAUTH_RESOURCE;
   if (resource === undefined) return undefined;
   const issuer = required(env, "RECIPES_MCP_OAUTH_ISSUER");
@@ -47,7 +54,14 @@ function hostedAuthentication(env: NodeJS.ProcessEnv): ({ resource: string; issu
   const clientId = required(env, "RECIPES_MCP_INTROSPECTION_CLIENT_ID");
   const clientSecret = required(env, "RECIPES_MCP_INTROSPECTION_CLIENT_SECRET");
   const dataRoot = required(env, "RECIPES_HOSTED_DATA_ROOT");
-  return { resource: new URL(resource).href, issuer: new URL(issuer).href, dataRoot, publicImportHosts: readList(env.RECIPES_HOSTED_IMPORT_ALLOWED_HOSTS, []), verifier: new IntrospectionVerifier({ endpoint, clientId, clientSecret, issuer, resource }) };
+  return {
+    resource: new URL(resource).href,
+    issuer: new URL(issuer).href,
+    dataRoot,
+    publicImportHosts: readList(env.RECIPES_HOSTED_IMPORT_ALLOWED_HOSTS, []),
+    maxBytes: parsePositiveBytes(env.RECIPES_HOSTED_MAX_BYTES),
+    verifier: new IntrospectionVerifier({ endpoint, clientId, clientSecret, issuer, resource }),
+  };
 }
 
 function required(env: NodeJS.ProcessEnv, name: string): string {
@@ -61,6 +75,12 @@ function parsePort(value: string | undefined): number {
   const port = Number(value);
   if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error("RECIPES_MCP_HTTP_PORT must be an integer from 1 to 65535.");
   return port;
+}
+function parsePositiveBytes(value: string | undefined): number {
+  if (value === undefined) return defaultHostedCollectionBytes;
+  const bytes = Number(value);
+  if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error("RECIPES_HOSTED_MAX_BYTES must be a positive safe integer.");
+  return bytes;
 }
 function parsePublicUrl(value: string | undefined, host: string, port: number): string {
   const candidate = value ?? `http://${host}:${port}/mcp`;

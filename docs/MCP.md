@@ -74,6 +74,7 @@ identity/proxy headers.
 | `RECIPES_MCP_INTROSPECTION_URL` | Cluster-private adapter introspection URL. |
 | `RECIPES_MCP_INTROSPECTION_CLIENT_ID` / `RECIPES_MCP_INTROSPECTION_CLIENT_SECRET` | Dedicated adapter verifier credential. |
 | `RECIPES_HOSTED_DATA_ROOT` | Writable mounted root for opaque per-user stores. |
+| `RECIPES_HOSTED_MAX_BYTES` | Optional positive per-user collection limit in bytes; defaults to 2097152 (2 MiB). |
 | `RECIPES_HOSTED_IMPORT_ALLOWED_HOSTS` | Space-separated, operator-approved public recipe hostnames; empty disables direct hosted URL imports. |
 
 Protected-resource metadata names the exact canonical resource and issuer and
@@ -90,9 +91,19 @@ each mounted-store directory from SHA-256 of the verified `(issuer, subject)`
 pair. It never uses email, client ID, a session identifier, a forwarded header,
 or a tool argument. CLI and stdio retain their trusted single-directory mode.
 
+The hosted store rejects symlink collection roots and refuses to follow symlink
+recipe or provenance files. Creates are quota-checked under the collection's
+single-process write serialization and atomically published without replacing an
+existing ID; readers never see a partially written JSON file. The deployment
+must keep the mounted collection root single-writer. A multi-replica shared-file
+volume needs a separate coordination design.
+
 The development pilot's bounded two-account qualification is recorded in #36.
 Release lifecycle, scale, backup/restore, and broader-host qualification remain
 separate controlled-release work; they are not implied by the development pilot.
+An isolated copied namespace can verify that a recipe-store restore remains
+addressable by the same verified issuer/subject pair, but does not demonstrate
+recovery of Ory or the production backup platform.
 
 Hosted imports are a deliberately narrower mode than CLI/stdio: paths, `file:`
 URLs, credentials in URLs, non-HTTP(S) protocols, redirects beyond three hops,

@@ -22,7 +22,8 @@ import {
   type RequestContext,
   type SearchRecipesRequest,
 } from "@edgestream/recipes-core";
-import { link, mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { link, lstat, mkdir, open, readdir, unlink, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 
@@ -61,6 +62,9 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, Rec
     assertRecipeDocument(recipe);
     const document = normalizeRecipeDocument(recipe);
     const encoded = Buffer.from(`${JSON.stringify(document, null, 2)}\n`, "utf8");
+    const provenanceEncoded = options?.provenance === undefined
+      ? undefined
+      : Buffer.from(`${JSON.stringify(options.provenance, null, 2)}\n`, "utf8");
     let created: RecipeRecord | undefined;
     await exclusiveDirectoryWrite(this.#directory, async () => {
       context?.signal?.throwIfAborted();
@@ -73,8 +77,10 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, Rec
       }
       const id = options?.id ?? await this.#idFor(recipe, options);
       assertRecipeId(id);
-      await mkdir(this.#directory, { recursive: true });
-      if (this.#maxBytes !== undefined && await this.#usedBytes() + encoded.byteLength > this.#maxBytes) throw new Error("Personal recipe collection quota exceeded.");
+      await this.#ensureDirectory();
+      if (this.#maxBytes !== undefined && await this.#usedBytes() + encoded.byteLength + (provenanceEncoded?.byteLength ?? 0) > this.#maxBytes) {
+        throw new Error("Personal recipe collection quota exceeded.");
+      }
       const target = this.#pathFor(id);
       const temporary = `${target}.${randomUUID()}.tmp`;
       let published = false;
@@ -83,7 +89,7 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, Rec
         context?.signal?.throwIfAborted();
         await link(temporary, target);
         published = true;
-        await this.#writeProvenance(id, options?.provenance, context);
+        await this.#writeProvenance(id, provenanceEncoded, context);
       } catch (error: unknown) {
         if (published) await unlink(target).catch(() => undefined);
         if (isExisting(error)) throw new RecipeConflictError(`A recipe with id ${id} already exists.`);
@@ -172,6 +178,7 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, Rec
 
   async #ids(): Promise<string[]> {
     try {
+      await this.#ensureDirectory();
       const entries = await readdir(this.#directory, { withFileTypes: true });
       return entries
         .filter((entry) => entry.isFile() && isRecipeFile(entry.name))
@@ -186,8 +193,19 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, Rec
 
   async #usedBytes(): Promise<number> {
     let total = 0;
-    for (const id of await this.#ids()) total += (await stat(this.#pathFor(id))).size;
+    for (const entry of await readdir(this.#directory, { withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      const details = await lstat(join(this.#directory, entry.name));
+      if (!details.isFile()) continue;
+      total += details.size;
+    }
     return total;
+  }
+
+  async #ensureDirectory(): Promise<void> {
+    await mkdir(this.#directory, { recursive: true });
+    const details = await lstat(this.#directory);
+    if (!details.isDirectory() || details.isSymbolicLink()) throw new Error("Recipe collection directory must not be a symbolic link.");
   }
 
   #pathFor(id: string): string {
@@ -201,11 +219,15 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, Rec
   }
 
   async #read(id: string, context?: RequestContext): Promise<RecipeDocument> {
-    const value: unknown = JSON.parse(await readFile(this.#pathFor(id), {
-      encoding: "utf8",
-      signal: context?.signal,
-    }));
+    const value: unknown = JSON.parse(await this.#readFile(this.#pathFor(id), context));
     return normalizeRecipeDocument(value);
+  }
+
+  async #readFile(path: string, context?: RequestContext): Promise<string> {
+    await this.#ensureDirectory();
+    const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    try { return await handle.readFile({ encoding: "utf8", signal: context?.signal }); }
+    finally { await handle.close(); }
   }
 
   async #findBySource(source: string | undefined): Promise<RecipeRecord | undefined> {
@@ -222,7 +244,7 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, Rec
 
   async #readProvenance(id: string): Promise<CreateRecipeOptions["provenance"] | undefined> {
     try {
-      const value: unknown = JSON.parse(await readFile(this.#provenancePathFor(id), "utf8"));
+      const value: unknown = JSON.parse(await this.#readFile(this.#provenancePathFor(id)));
       if (!isProvenance(value)) return undefined;
       return value;
     } catch (error: unknown) {
@@ -231,17 +253,17 @@ export class FileStore implements RecipeCatalog, RecipeSearch, RecipeWriter, Rec
     }
   }
 
-  async #writeProvenance(id: string, provenance: CreateRecipeOptions["provenance"], context?: RequestContext): Promise<void> {
-    if (provenance === undefined) return;
+  async #writeProvenance(id: string, encoded: Buffer | undefined, context?: RequestContext): Promise<void> {
+    if (encoded === undefined) return;
     const target = this.#provenancePathFor(id);
     const temporary = `${target}.${randomUUID()}.tmp`;
-    await unlink(target).catch((error: unknown) => {
-      if (!isMissing(error)) throw error;
-    });
     try {
-      await writeFile(temporary, `${JSON.stringify(provenance, null, 2)}\n`, { flag: "wx", signal: context?.signal });
+      await writeFile(temporary, encoded, { flag: "wx", signal: context?.signal });
       context?.signal?.throwIfAborted();
       await link(temporary, target);
+    } catch (error: unknown) {
+      if (isExisting(error)) throw new RecipeConflictError(`Recipe provenance for id ${id} already exists.`);
+      throw error;
     } finally {
       await unlink(temporary).catch(() => undefined);
     }
