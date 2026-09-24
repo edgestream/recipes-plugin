@@ -130,6 +130,17 @@ single-writer mounted volume; horizontal multi-process file-store coordination
 is not implemented. Directly copied files remain editable, but an operator must
 not grant untrusted filesystem write access to the mounted root.
 
+Hosted source fetching is a runtime-composed capability, not a generic URL
+fetch. It accepts only operator-approved HTTP(S) hostnames and performs a fresh
+DNS resolution for each hop, rejects non-public answers, then pins the accepted
+address into the socket lookup used for that hop. This prevents a separate
+check/connect lookup from being changed by DNS rebinding. Redirects receive the
+same treatment. Decoded response bytes are bounded while streaming; hosted
+request and concurrency budgets are shared by opaque account namespace and by
+the process. The same client is injected into provider network calls, and it
+strips authentication and cookie headers so MCP OAuth credentials cannot reach
+recipe origins.
+
 `CombinedCatalog` is a reusable runtime composition adapter for a known set of
 providers. It lists through one designated catalog, routes `get` by provider ID,
 and runs search in parallel. Its result order follows provider registration order;

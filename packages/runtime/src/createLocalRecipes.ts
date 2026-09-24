@@ -1,7 +1,7 @@
 import { RecipesService } from "@edgestream/recipes-application";
 import { ChefkochCatalog } from "@edgestream/recipes-provider-chefkoch";
 import type { RecipeResolver } from "@edgestream/recipes-core";
-import { UrlSource, type UrlSourceOptions } from "@edgestream/recipes-source-url";
+import { HostedFetchPolicy, UrlSource, type UrlSourceOptions } from "@edgestream/recipes-source-url";
 import { FileStore, type FileStoreOptions } from "@edgestream/recipes-store-file";
 import { CombinedCatalog, type RecipeProvider } from "./CombinedCatalog.js";
 import { localRecipesConfiguration, type LocalRecipesConfiguration } from "./configuration.js";
@@ -32,6 +32,10 @@ export interface HostedRecipesOptions extends Omit<LocalRecipesOptions, "dataDir
   readonly publicImportHosts?: readonly string[];
   /** Maximum bytes retained in one hosted personal collection. */
   readonly maxBytes?: number;
+  readonly maxRequestsPerAccount?: number;
+  readonly maxRequestsGlobal?: number;
+  readonly maxConcurrentPerAccount?: number;
+  readonly maxConcurrentGlobal?: number;
 }
 
 /** Creates the shared local runtime used by both executable frontends. */
@@ -39,7 +43,7 @@ export function createLocalRecipes(options: LocalRecipesOptions = {}): LocalReci
   return createRecipes(options);
 }
 
-function createRecipes(options: LocalRecipesOptions, storeOptions: FileStoreOptions = {}): LocalRecipesRuntime {
+function createRecipes(options: LocalRecipesOptions, storeOptions: FileStoreOptions = {}, providerFetch?: typeof fetch): LocalRecipesRuntime {
   const defaults = localRecipesConfiguration();
   const provider = options.provider ?? defaults.provider;
   const store = new FileStore(options.dataDirectory ?? defaults.dataDirectory, "personal", storeOptions);
@@ -48,7 +52,7 @@ function createRecipes(options: LocalRecipesOptions, storeOptions: FileStoreOpti
   const providers = selectProviders(
     provider,
     additionalProviders,
-    providerRegistry(store, source),
+    providerRegistry(store, source, providerFetch),
   );
   const catalog = new CombinedCatalog(store, providers);
   return {
@@ -66,14 +70,22 @@ function createRecipes(options: LocalRecipesOptions, storeOptions: FileStoreOpti
 
 /** Creates an isolated personal runtime. This is intentionally not used by CLI or stdio. */
 export function createHostedRecipes(options: HostedRecipesOptions): LocalRecipesRuntime {
+  const namespace = personalStorageNamespace(options.principal.issuer, options.principal.subject);
+  const hostedFetch = new HostedFetchPolicy({
+    allowedHosts: options.publicImportHosts ?? [], account: namespace,
+    ...(options.maxRequestsPerAccount === undefined ? {} : { maxRequestsPerAccount: options.maxRequestsPerAccount }),
+    ...(options.maxRequestsGlobal === undefined ? {} : { maxRequestsGlobal: options.maxRequestsGlobal }),
+    ...(options.maxConcurrentPerAccount === undefined ? {} : { maxConcurrentPerAccount: options.maxConcurrentPerAccount }),
+    ...(options.maxConcurrentGlobal === undefined ? {} : { maxConcurrentGlobal: options.maxConcurrentGlobal }),
+  });
   return createRecipes({
     ...options,
-    dataDirectory: join(options.dataRoot, personalStorageNamespace(options.principal.issuer, options.principal.subject)),
-    source: { ...options.source, hostedPublic: true, allowedHosts: options.publicImportHosts ?? [] },
-  }, { idempotentSourceImports: true, maxBytes: options.maxBytes ?? 2 * 1024 * 1024 });
+    dataDirectory: join(options.dataRoot, namespace),
+    source: { ...options.source, fetch: hostedFetch.fetch, hostedPublic: true, allowedHosts: options.publicImportHosts ?? [] },
+  }, { idempotentSourceImports: true, maxBytes: options.maxBytes ?? 2 * 1024 * 1024 }, hostedFetch.fetch);
 }
 
-function providerRegistry(store: FileStore, resolver: RecipeResolver): ReadonlyMap<string, () => LocalRecipeProvider> {
+function providerRegistry(store: FileStore, resolver: RecipeResolver, providerFetch?: typeof fetch): ReadonlyMap<string, () => LocalRecipeProvider> {
   return new Map<string, () => LocalRecipeProvider>([
     ["personal", () => ({
       id: "personal",
@@ -83,7 +95,7 @@ function providerRegistry(store: FileStore, resolver: RecipeResolver): ReadonlyM
       search: store,
     })],
     ["chefkoch", () => {
-      const catalog = new ChefkochCatalog({ resolver });
+      const catalog = new ChefkochCatalog({ resolver, ...(providerFetch === undefined ? {} : { fetch: providerFetch }) });
       return {
         id: "chefkoch",
         title: "Chefkoch recipes",
