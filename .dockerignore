@@ -1,3 +1,4 @@
 *
-!dist/recipes-mcp-http.mjs
 !Dockerfile
+!dist/
+!dist/recipes-mcp-http.mjs

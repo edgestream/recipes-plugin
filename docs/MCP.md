@@ -53,6 +53,23 @@ messages, never recipe content, credentials, local paths, or stack traces.
 `SIGINT` and `SIGTERM` stop the listener. The HTTP handler then aborts active
 request work through the SDK and does not write the personal store itself.
 
+## Container release
+
+`Dockerfile` packages only the committed HTTP bundle on the pinned Node 24
+runtime base image. The bundle is root-owned and executable; the image runs as
+the unprivileged `node` user and exposes `/data` as its only writable location.
+Production must mount `/data`, set the container root filesystem read-only, and
+keep credentials in its runtime secret mechanism rather than the image.
+
+The `Container` workflow runs on ARM64. Before it can publish, it runs the
+repository build, type check, and tests, then builds the ARM64 image and runs it
+with a disposable volume and read-only root filesystem. That smoke check verifies
+the non-root image configuration, writable mounted data, read-only application
+bundle, `/health`, a Streamable HTTP MCP initialization and tool-discovery
+handshake, and clean SIGTERM shutdown. Published images have an immutable
+registry digest, a source-revision OCI label, a commit-SHA tag for lookup, and
+BuildKit provenance. Deployments must use the digest, not the tag.
+
 ## Hosted OAuth and personal ownership
 
 A remotely reachable HTTP listener requires `RECIPES_MCP_OAUTH_RESOURCE` and
