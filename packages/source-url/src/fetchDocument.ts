@@ -1,7 +1,5 @@
 import type { RequestContext, SourceRef } from "@edgestream/recipes-core";
 import { readFile } from "node:fs/promises";
-import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
 import { pathToFileURL } from "node:url";
 
 export interface SourceDocument {
@@ -43,13 +41,10 @@ export async function fetchDocument(
   const response = await fetchPublic(reference, options, context);
   if (response.status === 404) return undefined;
   if (!response.ok) throw new Error(`Could not read ${reference.href}: HTTP ${response.status}`);
-  const declaredLength = Number(response.headers.get("content-length"));
-  if (Number.isFinite(declaredLength)) assertSize(declaredLength, options.maxBytes);
-  const buffer = await response.arrayBuffer();
-  assertSize(buffer.byteLength, options.maxBytes);
+  const text = await responseText(response, options.maxBytes);
   return {
     mediaType: mediaType(response.headers.get("content-type")),
-    text: new TextDecoder().decode(buffer),
+    text,
     source: { value: response.url || reference.href },
   };
 }
@@ -65,6 +60,7 @@ function sourceUrl(value: string, hostedPublic: boolean): URL {
     if (hostedPublic) throw new TypeError("Hosted recipe imports require an allowed public HTTP(S) URL.");
     return pathToFileURL(value);
   }
+  if (hostedPublic) throw new TypeError("Hosted recipe imports require an allowed public HTTP(S) URL.");
   throw new TypeError("Recipe sources must use file:, http:, or https: URLs.");
 }
 
@@ -72,7 +68,7 @@ async function fetchPublic(reference: URL, options: FetchDocumentOptions, contex
   let current = reference;
   const redirects = options.maxRedirects ?? 3;
   for (let count = 0; ; count += 1) {
-    if (options.hostedPublic) await assertHostedUrl(current, options.allowedHosts ?? []);
+    if (options.hostedPublic) assertHostedUrl(current, options.allowedHosts ?? []);
     const response = await (options.fetch ?? fetch)(current, {
       headers: { accept: "application/ld+json, application/json, text/html;q=0.9" },
       redirect: "manual",
@@ -85,21 +81,10 @@ async function fetchPublic(reference: URL, options: FetchDocumentOptions, contex
   }
 }
 
-async function assertHostedUrl(url: URL, allowedHosts: readonly string[]): Promise<void> {
+function assertHostedUrl(url: URL, allowedHosts: readonly string[]): void {
   if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password || !allowedHosts.includes(url.hostname)) {
     throw new TypeError("Hosted recipe imports require an allowed public HTTP(S) URL.");
   }
-  const addresses = await lookup(url.hostname, { all: true, verbatim: true });
-  if (!addresses.length || addresses.some((address) => !isPublicAddress(address.address))) throw new TypeError("Recipe source address is not public.");
-}
-
-function isPublicAddress(address: string): boolean {
-  if (isIP(address) === 4) {
-    const [a, b = -1] = address.split(".").map(Number);
-    return a !== 0 && a !== 10 && a !== 127 && a !== 169 && a !== 192 && a !== 224 && a !== 240 && !(a === 172 && b >= 16 && b <= 31) && !(a === 192 && b === 168) && !(a === 100 && b >= 64 && b <= 127);
-  }
-  const value = address.toLowerCase();
-  return value !== "::1" && !value.startsWith("fe80:") && !value.startsWith("fc") && !value.startsWith("fd") && !value.startsWith("ff") && !value.startsWith("::ffff:");
 }
 
 function requestSignal(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
@@ -109,6 +94,27 @@ function requestSignal(signal: AbortSignal | undefined, timeoutMs: number): Abor
 
 function assertSize(bytes: number, maxBytes: number): void {
   if (bytes > maxBytes) throw new Error(`Recipe source exceeds the ${maxBytes} byte limit.`);
+}
+
+/** Reads decoded response chunks while enforcing the limit before retaining them. */
+export async function responseText(response: Response, maxBytes: number): Promise<string> {
+  const declaredLength = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declaredLength)) assertSize(declaredLength, maxBytes);
+  if (response.body === null) return "";
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = []; let total = 0;
+  try {
+    for (;;) {
+      const next = await reader.read();
+      if (next.done) break;
+      total += next.value.byteLength;
+      assertSize(total, maxBytes);
+      chunks.push(next.value);
+    }
+  } catch (error) { await reader.cancel().catch(() => undefined); throw error; }
+  const result = new Uint8Array(total); let offset = 0;
+  for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.byteLength; }
+  return new TextDecoder().decode(result);
 }
 
 function isHtmlPath(path: string): boolean {

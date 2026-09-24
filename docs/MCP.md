@@ -76,6 +76,10 @@ identity/proxy headers.
 | `RECIPES_HOSTED_DATA_ROOT` | Writable mounted root for opaque per-user stores. |
 | `RECIPES_HOSTED_MAX_BYTES` | Optional positive per-user collection limit in bytes; defaults to 2097152 (2 MiB). |
 | `RECIPES_HOSTED_IMPORT_ALLOWED_HOSTS` | Space-separated, operator-approved public recipe hostnames; empty disables direct hosted URL imports. |
+| `RECIPES_HOSTED_MAX_REQUESTS_PER_ACCOUNT` | Positive lifetime request budget for one hosted account; defaults to 30. |
+| `RECIPES_HOSTED_MAX_REQUESTS_GLOBAL` | Positive process-wide lifetime hosted request budget; defaults to 300. |
+| `RECIPES_HOSTED_MAX_CONCURRENT_PER_ACCOUNT` | Concurrent upstream requests for one hosted account; defaults to 2. |
+| `RECIPES_HOSTED_MAX_CONCURRENT_GLOBAL` | Process-wide concurrent upstream requests; defaults to 20. |
 
 Protected-resource metadata names the exact canonical resource and issuer and
 advertises `recipes:read` and `recipes:write`. Every 401 or 403 includes an RFC
@@ -111,6 +115,20 @@ and destinations outside the approved hostname list are rejected before a
 recipe document is read. Each redirect is validated again and DNS results with
 private, loopback, link-local, multicast, reserved, or IPv4-mapped addresses
 are refused. Deployment egress policy remains a required second control.
+The hosted client resolves an approved name immediately before each connection,
+rejects non-public DNS answers, and pins the accepted address into that
+connection; it does not let a later resolver lookup select another address.
+Response bodies are decompressed and counted as streams before parsing, with a
+2 MiB decoded-document limit and a 15 second request timeout. Request budgets
+are process-lifetime limits, so operators should set them conservatively and
+restart only through their normal deployment lifecycle.
+
+Hosted deployments must additionally enforce egress at the workload/network
+policy layer: allow TCP 80/443 only to the approved recipe hosts' current public
+address ranges, and deny private, link-local and metadata ranges including
+`169.254.169.254` and IPv6 equivalents. DNS-aware enforcement is required when
+approved hosts use changing CDN addresses; this repository does not provide that
+infrastructure policy.
 
 ## V1 surface
 

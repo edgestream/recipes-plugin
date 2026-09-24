@@ -86,13 +86,10 @@ export class ChefkochCatalog implements RecipeCatalog, RecipeSearch {
       signal: requestSignal(context?.signal, this.#timeoutMs),
     });
     if (!response.ok) throw new Error(`Chefkoch search gateway returned HTTP ${response.status}.`);
-    const declaredLength = Number(response.headers.get("content-length"));
-    if (Number.isFinite(declaredLength)) assertSize(declaredLength, this.#maximumBytes);
-    const body = await response.arrayBuffer();
-    assertSize(body.byteLength, this.#maximumBytes);
+    const body = await responseText(response, this.#maximumBytes);
     let value: unknown;
     try {
-      value = JSON.parse(new TextDecoder().decode(body));
+      value = JSON.parse(body);
     } catch {
       throw new Error("Chefkoch search gateway returned invalid JSON.");
     }
@@ -223,6 +220,20 @@ function positiveInteger(value: number, name: string): number {
   return value;
 }
 
-function assertSize(value: number, maximumBytes: number): void {
-  if (value > maximumBytes) throw new Error(`Chefkoch search responses exceed the ${maximumBytes} byte limit.`);
+async function responseText(response: Response, maximumBytes: number): Promise<string> {
+  const declaredLength = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declaredLength) && declaredLength > maximumBytes) throw new Error(`Chefkoch search responses exceed the ${maximumBytes} byte limit.`);
+  if (response.body === null) return "";
+  const reader = response.body.getReader(); const chunks: Uint8Array[] = []; let total = 0;
+  try {
+    for (;;) {
+      const next = await reader.read(); if (next.done) break;
+      total += next.value.byteLength;
+      if (total > maximumBytes) throw new Error(`Chefkoch search responses exceed the ${maximumBytes} byte limit.`);
+      chunks.push(next.value);
+    }
+  } catch (error) { await reader.cancel().catch(() => undefined); throw error; }
+  const result = new Uint8Array(total); let offset = 0;
+  for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.byteLength; }
+  return new TextDecoder().decode(result);
 }

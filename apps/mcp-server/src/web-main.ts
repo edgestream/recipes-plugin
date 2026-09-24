@@ -22,6 +22,10 @@ export async function main(): Promise<void> {
       principal,
       publicImportHosts: authentication.publicImportHosts,
       maxBytes: authentication.maxBytes,
+      maxRequestsPerAccount: authentication.maxRequestsPerAccount,
+      maxRequestsGlobal: authentication.maxRequestsGlobal,
+      maxConcurrentPerAccount: authentication.maxConcurrentPerAccount,
+      maxConcurrentGlobal: authentication.maxConcurrentGlobal,
     });
     return createRecipesMcpServer({ recipes: runtime.recipes, providers: runtime.providers, defaultProvider: runtime.provider });
   }, {
@@ -46,7 +50,7 @@ export async function main(): Promise<void> {
   process.once("SIGTERM", stop);
 }
 
-function hostedAuthentication(env: NodeJS.ProcessEnv): ({ resource: string; issuer: string; verifier: IntrospectionVerifier; dataRoot: string; publicImportHosts: readonly string[]; maxBytes: number }) | undefined {
+function hostedAuthentication(env: NodeJS.ProcessEnv): ({ resource: string; issuer: string; verifier: IntrospectionVerifier; dataRoot: string; publicImportHosts: readonly string[]; maxBytes: number; maxRequestsPerAccount: number; maxRequestsGlobal: number; maxConcurrentPerAccount: number; maxConcurrentGlobal: number }) | undefined {
   const resource = env.RECIPES_MCP_OAUTH_RESOURCE;
   if (resource === undefined) return undefined;
   const issuer = required(env, "RECIPES_MCP_OAUTH_ISSUER");
@@ -60,6 +64,10 @@ function hostedAuthentication(env: NodeJS.ProcessEnv): ({ resource: string; issu
     dataRoot,
     publicImportHosts: readList(env.RECIPES_HOSTED_IMPORT_ALLOWED_HOSTS, []),
     maxBytes: parsePositiveBytes(env.RECIPES_HOSTED_MAX_BYTES),
+    maxRequestsPerAccount: parsePositiveBytes(env.RECIPES_HOSTED_MAX_REQUESTS_PER_ACCOUNT ?? "30"),
+    maxRequestsGlobal: parsePositiveBytes(env.RECIPES_HOSTED_MAX_REQUESTS_GLOBAL ?? "300"),
+    maxConcurrentPerAccount: parsePositiveBytes(env.RECIPES_HOSTED_MAX_CONCURRENT_PER_ACCOUNT ?? "2"),
+    maxConcurrentGlobal: parsePositiveBytes(env.RECIPES_HOSTED_MAX_CONCURRENT_GLOBAL ?? "20"),
     verifier: new IntrospectionVerifier({ endpoint, clientId, clientSecret, issuer, resource }),
   };
 }
