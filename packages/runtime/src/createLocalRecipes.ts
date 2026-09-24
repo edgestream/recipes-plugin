@@ -30,6 +30,8 @@ export interface HostedRecipesOptions extends Omit<LocalRecipesOptions, "dataDir
   /** These values must come from a successful private adapter verification. */
   readonly principal: { readonly issuer: string; readonly subject: string };
   readonly publicImportHosts?: readonly string[];
+  /** Maximum bytes retained in one hosted personal collection. */
+  readonly maxBytes?: number;
 }
 
 /** Creates the shared local runtime used by both executable frontends. */
@@ -68,7 +70,7 @@ export function createHostedRecipes(options: HostedRecipesOptions): LocalRecipes
     ...options,
     dataDirectory: join(options.dataRoot, personalStorageNamespace(options.principal.issuer, options.principal.subject)),
     source: { ...options.source, hostedPublic: true, allowedHosts: options.publicImportHosts ?? [] },
-  }, { idempotentSourceImports: true });
+  }, { idempotentSourceImports: true, maxBytes: options.maxBytes ?? 2 * 1024 * 1024 });
 }
 
 function providerRegistry(store: FileStore, resolver: RecipeResolver): ReadonlyMap<string, () => LocalRecipeProvider> {

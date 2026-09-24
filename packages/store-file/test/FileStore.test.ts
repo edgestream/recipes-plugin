@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RecipeConflictError, RecipeNotFoundError, UnsupportedRecipeCapabilityError } from "@edgestream/recipes-core";
@@ -86,6 +86,30 @@ test("enforces a collection quota while concurrent writes remain atomic", async 
     assert.doesNotThrow(() => JSON.parse(persisted));
   } finally {
     await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("does not follow recipe or collection-directory symbolic links", async () => {
+  const root = await mkdtemp(join(tmpdir(), "recipes-store-"));
+  const outsideRoot = await mkdtemp(join(tmpdir(), "recipes-store-outside-"));
+  try {
+    const outside = join(outsideRoot, "outside.json");
+    const collection = join(root, "collection");
+    await writeFile(outside, JSON.stringify({ "@type": "Recipe", name: "Outside" }));
+    await symlink(outside, join(root, "escaped.json"));
+    const store = new FileStore(root);
+
+    assert.equal((await store.list()).items.length, 0);
+    await assert.rejects(store.get({ provider: "personal", id: "escaped" }));
+    await assert.rejects(store.create({ "@type": "Recipe", name: "Inside", description: "" }, { id: "escaped" }), RecipeConflictError);
+    assert.equal(JSON.parse(await readFile(outside, "utf8")).name, "Outside");
+
+    await symlink(root, collection);
+    await assert.rejects(new FileStore(collection).list(), /must not be a symbolic link/u);
+    assert.ok((await readdir(root)).includes("escaped.json"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(outsideRoot, { recursive: true, force: true });
   }
 });
 

@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createLocalRecipes, localRecipesConfiguration, personalStorageNamespace } from "../src/index.js";
+import { cp, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { FileStore } from "@edgestream/recipes-store-file";
+import { createHostedRecipes, createLocalRecipes, localRecipesConfiguration, personalStorageNamespace } from "../src/index.js";
 
 test("reads the default provider and additional provider list once for both frontends", () => {
   assert.deepEqual(localRecipesConfiguration({
@@ -70,4 +74,37 @@ test("derives a stable opaque hosted namespace from issuer and subject only", ()
   assert.match(namespace, /^[A-Za-z0-9_-]{43}$/u);
   assert.equal(namespace, personalStorageNamespace("https://mcp-auth.example/", "kratos-uuid"));
   assert.notEqual(namespace, personalStorageNamespace("https://mcp-auth.example/", "other-uuid"));
+});
+
+test("keeps hosted accounts isolated across restart, relink, profile change, and isolated restore", async () => {
+  const root = await mkdtemp(join(tmpdir(), "recipes-hosted-runtime-"));
+  const restoredRoot = await mkdtemp(join(tmpdir(), "recipes-hosted-restored-"));
+  const issuer = "https://auth.example/";
+  const accountA = { issuer, subject: "account-a" };
+  const accountB = { issuer, subject: "account-b" };
+  try {
+    const namespaceA = personalStorageNamespace(accountA.issuer, accountA.subject);
+    const namespaceB = personalStorageNamespace(accountB.issuer, accountB.subject);
+    const recipe = { "@type": "Recipe", name: "Shared id", description: "" } as const;
+    await new FileStore(join(root, namespaceA)).create(recipe, { id: "same-id" });
+    await new FileStore(join(root, namespaceB)).create({ ...recipe, name: "Other account" }, { id: "same-id" });
+
+    const restartedA = createHostedRecipes({ dataRoot: root, principal: accountA });
+    const relinkedA = createHostedRecipes({ dataRoot: root, principal: { issuer, subject: "account-a" } });
+    const profileChangedA = createHostedRecipes({ dataRoot: root, principal: accountA });
+    const runtimeB = createHostedRecipes({ dataRoot: root, principal: accountB });
+
+    assert.equal((await restartedA.recipes.getRecipe({ provider: "personal", id: "same-id" }))?.document.name, "Shared id");
+    assert.equal((await relinkedA.recipes.listRecipes({ limit: 1 })).items[0]?.name, "Shared id");
+    assert.equal((await profileChangedA.recipes.listRecipes()).items[0]?.name, "Shared id");
+    assert.equal((await runtimeB.recipes.getRecipe({ provider: "personal", id: "same-id" }))?.document.name, "Other account");
+
+    await cp(join(root, namespaceA), join(restoredRoot, namespaceA), { recursive: true });
+    const restoredA = createHostedRecipes({ dataRoot: restoredRoot, principal: accountA });
+    assert.equal((await restoredA.recipes.getRecipe({ provider: "personal", id: "same-id" }))?.document.name, "Shared id");
+    assert.equal(await restoredA.recipes.getRecipe({ provider: "personal", id: "missing" }), undefined);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(restoredRoot, { recursive: true, force: true });
+  }
 });
