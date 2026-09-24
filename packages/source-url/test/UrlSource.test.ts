@@ -148,9 +148,9 @@ test("classifies internal IPv4, IPv6, mapped IPv6 and metadata addresses as non-
 });
 
 test("rejects an exhausted hosted request budget before another connection", async () => {
-  const policy = new HostedFetchPolicy({ allowedHosts: ["public.example"], account: `budget-${Date.now()}`, maxRequestsPerAccount: 1, lookup: async () => [{ address: "93.184.216.34", family: 4 }] });
-  await assert.rejects(policy.fetch("http://public.example:1/recipe"));
-  await assert.rejects(policy.fetch("http://public.example:1/recipe"), /budget exhausted/u);
+  const policy = new HostedFetchPolicy({ allowedHosts: ["public.example"], account: `budget-${Date.now()}`, maxRequestsPerAccount: 1, lookup: async () => [{ address: "93.184.216.34", family: 4 }], transport: async () => new Response("{}") });
+  await policy.fetch("https://public.example/recipe");
+  await assert.rejects(policy.fetch("https://public.example/recipe"), /budget exhausted/u);
 });
 
 test("enforces hosted concurrency before starting another request and strips credentials", async () => {

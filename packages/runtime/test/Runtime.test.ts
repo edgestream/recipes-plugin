@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FileStore } from "@edgestream/recipes-store-file";
 import { createHostedRecipes, createLocalRecipes, localRecipesConfiguration, personalStorageNamespace } from "../src/index.js";
+import { sourceRef } from "@edgestream/recipes-application";
 
 test("reads the default provider and additional provider list once for both frontends", () => {
   assert.deepEqual(localRecipesConfiguration({
@@ -74,6 +75,14 @@ test("derives a stable opaque hosted namespace from issuer and subject only", ()
   assert.match(namespace, /^[A-Za-z0-9_-]{43}$/u);
   assert.equal(namespace, personalStorageNamespace("https://mcp-auth.example/", "kratos-uuid"));
   assert.notEqual(namespace, personalStorageNamespace("https://mcp-auth.example/", "other-uuid"));
+});
+
+test("keeps hosted direct URL imports disabled unless an explicit test gate enables them", async () => {
+  const root = await mkdtemp(join(tmpdir(), "recipes-hosted-direct-import-"));
+  try {
+    const runtime = createHostedRecipes({ dataRoot: root, principal: { issuer: "https://auth.example/", subject: "account" } });
+    await assert.rejects(runtime.recipes.importRecipe({ source: sourceRef("https://public.example/recipe") }), /direct URL imports are disabled/u);
+  } finally { await rm(root, { recursive: true, force: true }); }
 });
 
 test("keeps hosted accounts isolated across restart, relink, profile change, and isolated restore", async () => {

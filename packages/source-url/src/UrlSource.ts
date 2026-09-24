@@ -15,6 +15,8 @@ export interface UrlSourceOptions {
   /** Hosted mode rejects paths and permits only operator-approved public hosts. */
   readonly hostedPublic?: boolean;
   readonly allowedHosts?: readonly string[];
+  /** Enables public-host test fixtures in hosted mode; never enable in production. */
+  readonly allowAnyPublicHost?: boolean;
   readonly maxRedirects?: number;
 }
 
@@ -28,6 +30,7 @@ export class UrlSource implements RecipeResolver {
       timeoutMs: options.timeoutMs ?? 15_000,
       hostedPublic: options.hostedPublic ?? false,
       allowedHosts: options.allowedHosts ?? [],
+      allowAnyPublicHost: options.allowAnyPublicHost ?? false,
       maxRedirects: options.maxRedirects ?? 3,
       ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
     };
