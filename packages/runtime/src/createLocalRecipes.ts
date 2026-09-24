@@ -29,7 +29,8 @@ export interface HostedRecipesOptions extends Omit<LocalRecipesOptions, "dataDir
   readonly dataRoot: string;
   /** These values must come from a successful private adapter verification. */
   readonly principal: { readonly issuer: string; readonly subject: string };
-  readonly publicImportHosts?: readonly string[];
+  /** Test-only escape hatch. Hosted production imports must use recipe references. */
+  readonly allowDirectUrlImports?: boolean;
   /** Maximum bytes retained in one hosted personal collection. */
   readonly maxBytes?: number;
   readonly maxRequestsPerAccount?: number;
@@ -43,7 +44,7 @@ export function createLocalRecipes(options: LocalRecipesOptions = {}): LocalReci
   return createRecipes(options);
 }
 
-function createRecipes(options: LocalRecipesOptions, storeOptions: FileStoreOptions = {}, providerFetch?: typeof fetch): LocalRecipesRuntime {
+function createRecipes(options: LocalRecipesOptions, storeOptions: FileStoreOptions = {}, providerFetch?: typeof fetch, directResolver?: RecipeResolver): LocalRecipesRuntime {
   const defaults = localRecipesConfiguration();
   const provider = options.provider ?? defaults.provider;
   const store = new FileStore(options.dataDirectory ?? defaults.dataDirectory, "personal", storeOptions);
@@ -63,7 +64,7 @@ function createRecipes(options: LocalRecipesOptions, storeOptions: FileStoreOpti
       search: catalog,
       writer: store,
       deleter: store,
-      resolver: source,
+      resolver: directResolver ?? source,
     }),
   };
 }
@@ -72,17 +73,27 @@ function createRecipes(options: LocalRecipesOptions, storeOptions: FileStoreOpti
 export function createHostedRecipes(options: HostedRecipesOptions): LocalRecipesRuntime {
   const namespace = personalStorageNamespace(options.principal.issuer, options.principal.subject);
   const hostedFetch = new HostedFetchPolicy({
-    allowedHosts: options.publicImportHosts ?? [], account: namespace,
+    allowedHosts: hostedProviderHosts, account: namespace,
     ...(options.maxRequestsPerAccount === undefined ? {} : { maxRequestsPerAccount: options.maxRequestsPerAccount }),
     ...(options.maxRequestsGlobal === undefined ? {} : { maxRequestsGlobal: options.maxRequestsGlobal }),
     ...(options.maxConcurrentPerAccount === undefined ? {} : { maxConcurrentPerAccount: options.maxConcurrentPerAccount }),
     ...(options.maxConcurrentGlobal === undefined ? {} : { maxConcurrentGlobal: options.maxConcurrentGlobal }),
   });
+  const providerSource = { ...options.source, fetch: hostedFetch.fetch, hostedPublic: true, allowedHosts: hostedProviderHosts };
+  const directResolver = options.allowDirectUrlImports === true
+    ? new UrlSource({ ...options.source, fetch: new HostedFetchPolicy({ allowedHosts: [], allowAnyPublicHost: true, account: `${namespace}:direct-test` }).fetch, hostedPublic: true, allowAnyPublicHost: true })
+    : new DisabledHostedSourceResolver();
   return createRecipes({
     ...options,
     dataDirectory: join(options.dataRoot, namespace),
-    source: { ...options.source, fetch: hostedFetch.fetch, hostedPublic: true, allowedHosts: options.publicImportHosts ?? [] },
-  }, { idempotentSourceImports: true, maxBytes: options.maxBytes ?? 2 * 1024 * 1024 }, hostedFetch.fetch);
+    source: providerSource,
+  }, { idempotentSourceImports: true, maxBytes: options.maxBytes ?? 2 * 1024 * 1024 }, hostedFetch.fetch, directResolver);
+}
+
+const hostedProviderHosts = ["api.chefkoch.de", "www.chefkoch.de"];
+
+class DisabledHostedSourceResolver implements RecipeResolver {
+  async resolve(): Promise<never> { throw new TypeError("Hosted direct URL imports are disabled."); }
 }
 
 function providerRegistry(store: FileStore, resolver: RecipeResolver, providerFetch?: typeof fetch): ReadonlyMap<string, () => LocalRecipeProvider> {

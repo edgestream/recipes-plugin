@@ -7,6 +7,8 @@ import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 
 export interface HostedFetchPolicyOptions {
   readonly allowedHosts: readonly string[];
+  /** Test-only direct imports may use any public hostname. */
+  readonly allowAnyPublicHost?: boolean;
   readonly account: string;
   readonly maxRequestsPerAccount?: number;
   readonly maxRequestsGlobal?: number;
@@ -23,15 +25,17 @@ export interface HostedFetchPolicyOptions {
  */
 export class HostedFetchPolicy {
   readonly #allowedHosts: ReadonlySet<string>;
+  readonly #allowAnyPublicHost: boolean;
   readonly #account: string;
   readonly #lookup: NonNullable<HostedFetchPolicyOptions["lookup"]>;
   readonly #transport: typeof fetch | undefined;
-  readonly #limits: Required<Omit<HostedFetchPolicyOptions, "allowedHosts" | "account" | "lookup" | "transport">>;
+  readonly #limits: Required<Omit<HostedFetchPolicyOptions, "allowedHosts" | "allowAnyPublicHost" | "account" | "lookup" | "transport">>;
   static #accounts = new Map<string, { requests: number; active: number }>();
   static #global = { requests: 0, active: 0 };
 
   constructor(options: HostedFetchPolicyOptions) {
     this.#allowedHosts = new Set(options.allowedHosts.map((host) => host.toLowerCase()));
+    this.#allowAnyPublicHost = options.allowAnyPublicHost ?? false;
     this.#account = options.account;
     this.#lookup = options.lookup ?? (async (host) => dnsLookup(host, { all: true, verbatim: true }));
     this.#transport = options.transport;
@@ -64,7 +68,7 @@ export class HostedFetchPolicy {
   };
 
   private assertUrl(url: URL): void {
-    if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password || !this.#allowedHosts.has(url.hostname.toLowerCase())) {
+    if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password || (url.port !== "" && url.port !== (url.protocol === "https:" ? "443" : "80")) || (!this.#allowAnyPublicHost && !this.#allowedHosts.has(url.hostname.toLowerCase()))) {
       throw new TypeError("Hosted recipe imports require an allowed public HTTP(S) URL.");
     }
   }

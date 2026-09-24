@@ -75,7 +75,7 @@ identity/proxy headers.
 | `RECIPES_MCP_INTROSPECTION_CLIENT_ID` / `RECIPES_MCP_INTROSPECTION_CLIENT_SECRET` | Dedicated adapter verifier credential. |
 | `RECIPES_HOSTED_DATA_ROOT` | Writable mounted root for opaque per-user stores. |
 | `RECIPES_HOSTED_MAX_BYTES` | Optional positive per-user collection limit in bytes; defaults to 2097152 (2 MiB). |
-| `RECIPES_HOSTED_IMPORT_ALLOWED_HOSTS` | Space-separated, operator-approved public recipe hostnames; empty disables direct hosted URL imports. |
+| `RECIPES_HOSTED_ENABLE_DIRECT_URL_IMPORTS` | Test-only boolean; only the exact value `true` enables direct URL imports. Production must leave it unset. |
 | `RECIPES_HOSTED_MAX_REQUESTS_PER_ACCOUNT` | Positive lifetime request budget for one hosted account; defaults to 30. |
 | `RECIPES_HOSTED_MAX_REQUESTS_GLOBAL` | Positive process-wide lifetime hosted request budget; defaults to 300. |
 | `RECIPES_HOSTED_MAX_CONCURRENT_PER_ACCOUNT` | Concurrent upstream requests for one hosted account; defaults to 2. |
@@ -109,12 +109,14 @@ An isolated copied namespace can verify that a recipe-store restore remains
 addressable by the same verified issuer/subject pair, but does not demonstrate
 recovery of Ory or the production backup platform.
 
-Hosted imports are a deliberately narrower mode than CLI/stdio: paths, `file:`
-URLs, credentials in URLs, non-HTTP(S) protocols, redirects beyond three hops,
-and destinations outside the approved hostname list are rejected before a
-recipe document is read. Each redirect is validated again and DNS results with
-private, loopback, link-local, multicast, reserved, or IPv4-mapped addresses
-are refused. Deployment egress policy remains a required second control.
+Hosted production imports accept only provider-qualified `recipes://` references.
+Direct paths and URLs are disabled by default; the test-only
+`RECIPES_HOSTED_ENABLE_DIRECT_URL_IMPORTS=true` gate is never a production
+configuration. The gate retains the public HTTP(S)-only policy: paths, `file:`
+URLs, credentials in URLs, non-HTTP(S) protocols, non-standard ports, redirects
+beyond three hops, and non-public destinations are rejected before a recipe
+document is read. Each redirect is validated again and DNS results with private,
+loopback, link-local, multicast, reserved, or IPv4-mapped addresses are refused.
 The hosted client resolves an approved name immediately before each connection,
 rejects non-public DNS answers, and pins the accepted address into that
 connection; it does not let a later resolver lookup select another address.
@@ -124,11 +126,12 @@ are process-lifetime limits, so operators should set them conservatively and
 restart only through their normal deployment lifecycle.
 
 Hosted deployments must additionally enforce egress at the workload/network
-policy layer: allow TCP 80/443 only to the approved recipe hosts' current public
-address ranges, and deny private, link-local and metadata ranges including
-`169.254.169.254` and IPv6 equivalents. DNS-aware enforcement is required when
-approved hosts use changing CDN addresses; this repository does not provide that
-infrastructure policy.
+policy layer: allow TCP 443 only to the current public address ranges of the
+enabled providers (currently `api.chefkoch.de` and `www.chefkoch.de`), and deny
+private, link-local and metadata ranges including `169.254.169.254` and IPv6
+equivalents. DNS-aware enforcement is required when provider CDNs change
+addresses; this repository does not provide that infrastructure policy. The
+test-only direct-URL gate must not be enabled where this rule is in force.
 
 ## V1 surface
 
@@ -138,9 +141,11 @@ The configured runtime exposes these tools:
 - `search_recipes`: paged free-text search returning recipe `ResourceLink` values;
 - `get_recipe`: complete schema.org Recipe retrieval by provider and provider-local
   ID;
-- `import_recipe`: imports from a `recipes://` URI, path, file URI, HTTP URL, or
-  HTTPS URL, with an optional stable personal ID. Local CLI and stdio imports are
-  non-idempotent; hosted automatic imports are idempotent by canonical source.
+- `import_recipe`: imports a `recipes://` URI in hosted production; trusted local
+  CLI and stdio additionally accept paths, file URIs and HTTP(S) URLs. The
+  explicitly test-only hosted direct-URL gate retains HTTP(S) URLs for controlled
+  fixtures. Local imports are non-idempotent; hosted automatic imports are
+  idempotent by canonical source.
 - `delete_recipe`: permanently delete one recipe by provider and provider-local ID
   when the configured runtime supports deletion.
 

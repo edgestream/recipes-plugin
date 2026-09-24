@@ -14,6 +14,7 @@ export interface FetchDocumentOptions {
   readonly timeoutMs: number;
   readonly hostedPublic?: boolean;
   readonly allowedHosts?: readonly string[];
+  readonly allowAnyPublicHost?: boolean;
   readonly maxRedirects?: number;
 }
 
@@ -68,7 +69,7 @@ async function fetchPublic(reference: URL, options: FetchDocumentOptions, contex
   let current = reference;
   const redirects = options.maxRedirects ?? 3;
   for (let count = 0; ; count += 1) {
-    if (options.hostedPublic) assertHostedUrl(current, options.allowedHosts ?? []);
+    if (options.hostedPublic) assertHostedUrl(current, options.allowedHosts ?? [], options.allowAnyPublicHost ?? false);
     const response = await (options.fetch ?? fetch)(current, {
       headers: { accept: "application/ld+json, application/json, text/html;q=0.9" },
       redirect: "manual",
@@ -81,8 +82,8 @@ async function fetchPublic(reference: URL, options: FetchDocumentOptions, contex
   }
 }
 
-function assertHostedUrl(url: URL, allowedHosts: readonly string[]): void {
-  if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password || !allowedHosts.includes(url.hostname)) {
+function assertHostedUrl(url: URL, allowedHosts: readonly string[], allowAnyPublicHost: boolean): void {
+  if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password || (url.port !== "" && url.port !== (url.protocol === "https:" ? "443" : "80")) || (!allowAnyPublicHost && !allowedHosts.includes(url.hostname))) {
     throw new TypeError("Hosted recipe imports require an allowed public HTTP(S) URL.");
   }
 }

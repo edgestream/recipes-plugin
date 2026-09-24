@@ -8,6 +8,8 @@ export interface RecipesMcpOptions {
   readonly providers: readonly RecipeProviderPresentation[];
   readonly defaultProvider: string;
   readonly version?: string;
+  /** Whether this presentation may accept direct path or URL import sources. */
+  readonly sourceImports?: boolean;
 }
 
 export interface RecipeProviderPresentation {
@@ -22,12 +24,13 @@ export function createRecipesMcpServer({
   providers,
   defaultProvider,
   version = "0.1.0",
+  sourceImports = true,
 }: RecipesMcpOptions): McpServer {
   if (!providers.some((provider) => provider.id === defaultProvider)) {
     throw new TypeError("The MCP default provider must be registered in the runtime.");
   }
   const server = new McpServer({ name: "recipes", version });
   registerRecipeResources(server, recipes, providers);
-  registerRecipeTools(server, recipes, providers.map((provider) => provider.id), defaultProvider);
+  registerRecipeTools(server, recipes, providers.map((provider) => provider.id), defaultProvider, sourceImports);
   return server;
 }

@@ -20,14 +20,14 @@ export async function main(): Promise<void> {
     const runtime = authentication === undefined || principal === undefined ? createLocalRecipes() : createHostedRecipes({
       dataRoot: authentication.dataRoot,
       principal,
-      publicImportHosts: authentication.publicImportHosts,
+      allowDirectUrlImports: authentication.allowDirectUrlImports,
       maxBytes: authentication.maxBytes,
       maxRequestsPerAccount: authentication.maxRequestsPerAccount,
       maxRequestsGlobal: authentication.maxRequestsGlobal,
       maxConcurrentPerAccount: authentication.maxConcurrentPerAccount,
       maxConcurrentGlobal: authentication.maxConcurrentGlobal,
     });
-    return createRecipesMcpServer({ recipes: runtime.recipes, providers: runtime.providers, defaultProvider: runtime.provider });
+    return createRecipesMcpServer({ recipes: runtime.recipes, providers: runtime.providers, defaultProvider: runtime.provider, sourceImports: authentication === undefined || authentication.allowDirectUrlImports });
   }, {
     host, port, allowedHosts: [host, "localhost", "127.0.0.1", "[::1]", ...(authentication === undefined ? [] : [new URL(authentication.resource).host])],
     allowedOrigins: readList(process.env.RECIPES_MCP_HTTP_ALLOWED_ORIGINS, ["localhost", "127.0.0.1", "[::1]"]),
@@ -50,7 +50,7 @@ export async function main(): Promise<void> {
   process.once("SIGTERM", stop);
 }
 
-function hostedAuthentication(env: NodeJS.ProcessEnv): ({ resource: string; issuer: string; verifier: IntrospectionVerifier; dataRoot: string; publicImportHosts: readonly string[]; maxBytes: number; maxRequestsPerAccount: number; maxRequestsGlobal: number; maxConcurrentPerAccount: number; maxConcurrentGlobal: number }) | undefined {
+function hostedAuthentication(env: NodeJS.ProcessEnv): ({ resource: string; issuer: string; verifier: IntrospectionVerifier; dataRoot: string; allowDirectUrlImports: boolean; maxBytes: number; maxRequestsPerAccount: number; maxRequestsGlobal: number; maxConcurrentPerAccount: number; maxConcurrentGlobal: number }) | undefined {
   const resource = env.RECIPES_MCP_OAUTH_RESOURCE;
   if (resource === undefined) return undefined;
   const issuer = required(env, "RECIPES_MCP_OAUTH_ISSUER");
@@ -62,7 +62,7 @@ function hostedAuthentication(env: NodeJS.ProcessEnv): ({ resource: string; issu
     resource: new URL(resource).href,
     issuer: new URL(issuer).href,
     dataRoot,
-    publicImportHosts: readList(env.RECIPES_HOSTED_IMPORT_ALLOWED_HOSTS, []),
+    allowDirectUrlImports: env.RECIPES_HOSTED_ENABLE_DIRECT_URL_IMPORTS === "true",
     maxBytes: parsePositiveBytes(env.RECIPES_HOSTED_MAX_BYTES),
     maxRequestsPerAccount: parsePositiveBytes(env.RECIPES_HOSTED_MAX_REQUESTS_PER_ACCOUNT ?? "30"),
     maxRequestsGlobal: parsePositiveBytes(env.RECIPES_HOSTED_MAX_REQUESTS_GLOBAL ?? "300"),

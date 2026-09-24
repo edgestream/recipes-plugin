@@ -9,6 +9,7 @@ export function registerRecipeTools(
   recipes: RecipesService,
   providers: readonly string[],
   defaultProvider: string,
+  sourceImports: boolean,
 ): void {
   const providerSchema = z.string()
     .refine((provider) => providers.includes(provider), `Provider must be one of: ${providers.join(", ")}.`)
@@ -83,9 +84,9 @@ export function registerRecipeTools(
     "import_recipe",
     {
       title: "Import recipe",
-      description: "Import a recipe resource, file, or HTTP(S) URL into the personal collection.",
+      description: sourceImports ? "Import a recipe resource, file, or HTTP(S) URL into the personal collection." : "Import a recipe resource into the personal collection.",
       inputSchema: z.object({
-        source: z.string().trim().min(1).describe("A recipes://provider/id URI, file path, file: URL, or HTTP(S) URL to a recipe document."),
+        source: z.string().trim().min(1).describe(sourceImports ? "A recipes://provider/id URI, file path, file: URL, or HTTP(S) URL to a recipe document." : "A recipes://provider/id URI to a recipe document."),
         id: recipeIdSchema.optional().describe("Optional stable personal recipe id."),
       }),
       annotations: { readOnlyHint: false, idempotentHint: false },
