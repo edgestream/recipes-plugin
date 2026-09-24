@@ -6,7 +6,7 @@ LABEL org.opencontainers.image.source="https://github.com/edgestream/recipes-plu
       org.opencontainers.image.description="Recipes Streamable HTTP MCP service"
 
 WORKDIR /app
-COPY --chown=node:node dist/recipes-mcp-http.mjs ./recipes-mcp-http.mjs
+COPY --chown=root:root --chmod=0555 dist/recipes-mcp-http.mjs ./recipes-mcp-http.mjs
 RUN mkdir /data && chown node:node /data
 
 USER node
