@@ -324,6 +324,12 @@ survives plugin upgrades. Installed plugin caches may not contain
 `node_modules`, `tsx`, or development dependencies; runtime manifests must never
 depend on them.
 
+The default MCP server version comes from the generated local
+`apps/mcp-server/src/version.ts`, synchronized from the authoritative root
+product version by the [release preparation script](RELEASE.md). This embeds the
+version in both standalone transports without reading `package.json` at runtime;
+an explicit caller override remains supported.
+
 Rebuild and commit `dist/recipes-mcp.mjs` whenever MCP source, runtime composition,
 runtime imports, dependencies, bundle options, or MCP manifests change.
 Rebuild and commit `dist/recipes-mcp-http.mjs` whenever the HTTP entry point,

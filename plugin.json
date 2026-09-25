@@ -10,5 +10,27 @@
     "recipes",
     "cooking",
     "mcp"
-  ]
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Recipes Dev",
+        "shortDescription": "Cooking recipes",
+        "longDescription": "Search and retrieve cooking recipes from your own collection and external sources.",
+        "developerName": "Edgestream",
+        "category": "Lifestyle",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "List my recipes",
+          "Search recipes for spaghetti",
+          "Show the details of the first recipe from those search results",
+          "Import that recipe into my collection"
+        ],
+        "brandColor": "#F97316"
+      }
+    }
+  }
 }

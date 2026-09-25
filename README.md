@@ -14,7 +14,9 @@ codex plugin add recipes-dev@edgestream-dev
 ```
 
 See [marketplace installation guide](https://github.com/edgestream/agent-marketplace#installation)
-and [PLUGIN.md](docs/PLUGIN.md) for packaging and release details.
+and [PLUGIN.md](docs/PLUGIN.md) for packaging details. Maintainers should follow
+the [release procedure](docs/RELEASE.md) for version preparation and the separate
+publication and marketplace gates.
 
 ## MCP
 

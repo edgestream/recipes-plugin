@@ -66,7 +66,11 @@ Keep the following values synchronized wherever both contracts express them:
 - user-facing intent: the Codex `interface` description and starter prompts must
   accurately represent the same Recipes service.
 
-Validate all four files as JSON and run the repository checks before release:
+Use [RELEASE.md](RELEASE.md) to prepare release metadata, select the stable or
+development channel, and complete the manual publication gates. The root product
+version and both plugin identities are synchronized by that script; it does not
+publish or promote a release. Validate all four files as JSON and run the
+repository checks before release:
 
 ```bash
 npm run build

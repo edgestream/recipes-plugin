@@ -2,6 +2,7 @@ import type { RecipesService } from "@edgestream/recipes-application";
 import { McpServer } from "@modelcontextprotocol/server";
 import { registerRecipeResources } from "./resources.js";
 import { registerRecipeTools } from "./tools.js";
+import { version as defaultVersion } from "./version.js";
 
 export interface RecipesMcpOptions {
   readonly recipes: RecipesService;
@@ -23,7 +24,7 @@ export function createRecipesMcpServer({
   recipes,
   providers,
   defaultProvider,
-  version = "0.1.0",
+  version = defaultVersion,
   sourceImports = true,
 }: RecipesMcpOptions): McpServer {
   if (!providers.some((provider) => provider.id === defaultProvider)) {
