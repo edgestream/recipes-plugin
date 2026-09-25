@@ -56,6 +56,11 @@ test("preview is read-only; stable, patch and development preparation are repeat
         assert.equal((await json(directory, join(key, "package.json"))).version, version);
       }
     }
+    for (const key of ["packages/application", "packages/provider-chefkoch", "packages/source-url", "packages/store-file"]) {
+      const manifest = await json(directory, join(key, "package.json"));
+      assert.equal(manifest.peerDependencies["@edgestream/recipes-core"], `^${version}`);
+      assert.equal(lock.packages[key].peerDependencies["@edgestream/recipes-core"], `^${version}`);
+    }
     const portable = await json(directory, "plugin.json");
     const codex = await json(directory, ".codex-plugin/plugin.json");
     assert.equal(portable.name, channel === "stable" ? "recipes" : "recipes-dev");

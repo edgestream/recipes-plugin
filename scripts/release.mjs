@@ -49,10 +49,20 @@ export async function planRelease(directory, { version, channel }) {
   for (const key of Object.keys(lock.packages)) {
     if (key && !key.split("/").includes("node_modules") && !workspaceKeys.has(key)) throw new Error(`Unexpected workspace in lockfile: ${key}`);
   }
+  const workspaceNames = new Set();
+  for (const file of packageFiles) workspaceNames.add((file === "package.json" ? manifest : await readJson(file)).name);
   for (const file of packageFiles) {
     const value = file === "package.json" ? manifest : await readJson(file);
     const key = file === "package.json" ? "" : dirname(file).replaceAll("\\", "/");
     if (!lock.packages[key] || lock.packages[key].name !== value.name) throw new Error(`Missing or mismatched lockfile package: ${file}`);
+    for (const section of ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"]) {
+      for (const [name, range] of Object.entries(value[section] ?? {})) {
+        if (workspaceNames.has(name) && /^\^\d+\.\d+\.\d+$/u.test(range)) {
+          value[section][name] = `^${version}`;
+          lock.packages[key][section][name] = `^${version}`;
+        }
+      }
+    }
     value.version = version;
     lock.packages[key].version = version;
     await queueJson(file, value);

@@ -24,8 +24,9 @@ The root `package.json` is the authoritative product version. The preparation
 script changes only release metadata:
 
 - Root/workspace package manifests discovered through the root workspace patterns
-  and their npm v3 lockfile entries. External dependency versions and integrity
-  metadata remain unchanged.
+  and their npm v3 lockfile entries. A plain caret range to an internal
+  workspace package advances with the product version; external dependency
+  versions and integrity metadata remain unchanged.
 - `plugin.json` and `.codex-plugin/plugin.json`: product version, channel
   identity, and matching display name.
 - `apps/mcp-server/src/version.ts`, a generated committed module used by both
