@@ -61,7 +61,10 @@ the unprivileged `node` user and exposes `/data` as its only writable location.
 Production must mount `/data`, set the container root filesystem read-only, and
 keep credentials in its runtime secret mechanism rather than the image.
 
-The `Container` workflow runs on ARM64. Before it can publish, it runs the
+Development images use the `Container` workflow on ARM64. Stable release images
+use the separate `Release container` workflow for native AMD64 and ARM64 builds
+and matching version tags; see [RELEASE.md](RELEASE.md#release-container-images).
+The development workflow runs on ARM64. Before it can publish, it runs the
 repository build, type check, and tests, then builds the ARM64 image and runs it
 with a disposable volume and read-only root filesystem. That smoke check verifies
 the non-root image configuration, writable mounted data, read-only application

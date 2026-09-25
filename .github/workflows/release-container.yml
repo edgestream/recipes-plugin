@@ -1,0 +1,136 @@
+name: Release container
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Existing published release tag (for example 0.1.0)
+        required: true
+        type: string
+  pull_request:
+    paths:
+      - .github/workflows/release-container.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-container-${{ inputs.version || github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      commit: ${{ steps.resolve.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version || github.event.release.tag_name }}
+          EVENT: ${{ github.event_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT" == pull_request ]]; then
+            echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$VERSION" > /tmp/release.json
+          jq -e --arg version "$VERSION" '.tag_name == $version and .draft == false and .prerelease == false and .immutable == true' /tmp/release.json
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "commit=$(git rev-parse "refs/tags/$VERSION^{commit}")" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: resolve
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.commit }}
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - if: github.event_name != 'pull_request'
+        env:
+          VERSION: ${{ needs.resolve.outputs.version }}
+        run: npm run release -- "$VERSION" --channel stable --check
+      - run: npm run build && npm run check && npm test && git diff --exit-code
+      - name: Build and test the exact image to publish
+        env:
+          COMMIT: ${{ needs.resolve.outputs.commit }}
+          VERSION: ${{ needs.resolve.outputs.version }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          docker build --platform "linux/$ARCH" --build-arg "VCS_REF=$COMMIT" --label "org.opencontainers.image.version=$VERSION" -t recipes-release:test .
+          node scripts/container-smoke.mjs recipes-release:test "$COMMIT"
+          docker image inspect recipes-release:test --format '{{.Architecture}}' | grep -x "$ARCH"
+          docker save recipes-release:test | gzip > /tmp/image.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.arch }}
+          path: /tmp/image.tar.gz
+          retention-days: 1
+
+  publish:
+    if: github.event_name != 'pull_request'
+    needs: [resolve, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: image-*
+          path: /tmp/images
+      - name: Publish tested architectures and release index
+        env:
+          VERSION: ${{ needs.resolve.outputs.version }}
+          COMMIT: ${{ needs.resolve.outputs.commit }}
+          IMAGE: ghcr.io/edgestream/recipes-mcp
+        shell: bash
+        run: |
+          set -euo pipefail
+          for arch in amd64 arm64; do
+            gunzip -c "/tmp/images/image-$arch/image.tar.gz" | docker load
+            test "$(docker image inspect recipes-release:test --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$COMMIT"
+            test "$(docker image inspect recipes-release:test --format '{{.Architecture}}')" = "$arch"
+            staging="$IMAGE:release-build-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$arch"
+            docker tag recipes-release:test "$staging"
+            docker push "$staging"
+            docker image inspect "$staging" --format '{{index .RepoDigests 0}}' >> /tmp/digests
+          done
+          # Never overwrite a previously published version, even on a retry.
+          if docker buildx imagetools inspect "$IMAGE:$VERSION" > /tmp/existing 2>/tmp/inspect-error; then
+            echo "Release image already exists; refusing to replace $IMAGE:$VERSION" >&2
+            exit 1
+          fi
+          grep -Eqi 'manifest unknown|not found' /tmp/inspect-error
+          mapfile -t digests < /tmp/digests
+          docker buildx imagetools create -t "$IMAGE:$VERSION" "${digests[@]}"
+          docker buildx imagetools inspect "$IMAGE:$VERSION" --raw > /tmp/index.json
+          jq -e '[.manifests[].platform | "\(.os)/\(.architecture)"] | sort == ["linux/amd64", "linux/arm64"]' /tmp/index.json
+          docker buildx imagetools inspect "$IMAGE:$VERSION" >> "$GITHUB_STEP_SUMMARY"
+          echo "Source commit: $COMMIT" >> "$GITHUB_STEP_SUMMARY"
