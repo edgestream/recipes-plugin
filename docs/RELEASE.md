@@ -109,3 +109,20 @@ GitHub Actions required checks, a deliberately triggered publication workflow,
 immutable-release configuration, and serialized publication/promotion are not
 implemented by this tool. Marketplace and ChatGPT Directory publication remain
 separate processes.
+
+## Release container images
+
+The `Release container` workflow publishes `ghcr.io/edgestream/recipes-mcp:<version>`
+for an immutable, published stable GitHub release. It resolves the exact tag commit,
+checks stable metadata, rebuilds and tests on native AMD64 and ARM64 runners, and
+smoke-tests each image before combining the tested images into one OCI index.
+The image labels record the release version and source commit. Use the index digest
+for GitOps deployment; image publication does not update a running cluster.
+
+Published release events trigger the workflow when the release commit contains it.
+For older release commits (including 0.1.0), run `release-container.yml` manually
+from main with `version` set to the published tag. The workflow still checks out
+and builds that tag's commit, never main's application source. Existing version
+tags are never overwritten; a retry after publication stops for inspection.
+Per-run architecture tags retain the tested images. Development commit-SHA images
+continue through the separate ARM64 `Container` workflow.
