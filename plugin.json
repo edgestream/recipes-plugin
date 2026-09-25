@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "recipes-dev",
+  "name": "recipes",
   "version": "0.1.0",
   "description": "Cooking recipes",
   "author": {
@@ -14,7 +14,7 @@
   "extensions": {
     "com.openai": {
       "interface": {
-        "displayName": "Recipes Dev",
+        "displayName": "Recipes",
         "shortDescription": "Cooking recipes",
         "longDescription": "Search and retrieve cooking recipes from your own collection and external sources.",
         "developerName": "Edgestream",

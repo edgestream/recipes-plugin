@@ -67,7 +67,8 @@ entries. Maintainers choose the branch/version and complete the manual gates.
    release.
 2. On a preparation branch targeting that maintenance line, write stable
    metadata, review the diff, rebuild bundles, update release-specific guidance
-   and notes, and run the gates below.
+   and notes (for 0.1.0, see [releases/0.1.0.md](releases/0.1.0.md)), and run
+   the gates below.
 3. Merge the preparation PR, rerun gates on the exact merged commit, then create
    the exact immutable tag and matching GitHub release. These are separate
    deliberate actions.
