@@ -16,7 +16,8 @@
     "bundle:mcp:http": "esbuild apps/mcp-server/src/web-main.ts --bundle --platform=node --target=node24 --format=esm --minify-whitespace --outfile=dist/recipes-mcp-http.mjs && node scripts/normalize-bundle.mjs dist/recipes-mcp-http.mjs",
     "bundle:cli": "esbuild apps/cli/src/main.ts --bundle --platform=node --target=node24 --format=esm --minify-whitespace --outfile=dist/recipes-cli.mjs && node scripts/normalize-bundle.mjs dist/recipes-cli.mjs",
     "check": "tsc -b --pretty false",
-    "test": "tsx --test packages/*/test/*.test.ts apps/*/test/*.test.ts test/contracts/*.test.ts",
+    "test": "tsx --test packages/*/test/*.test.ts apps/*/test/*.test.ts test/contracts/*.test.ts test/*.test.mjs",
+    "release": "node scripts/release.mjs",
     "recipes": "node dist/recipes-cli.mjs",
     "start:mcp": "tsx apps/mcp-server/src/main.ts",
     "start:mcp:http": "tsx apps/mcp-server/src/web-main.ts"

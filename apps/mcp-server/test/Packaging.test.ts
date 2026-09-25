@@ -12,6 +12,7 @@ import { getDefaultEnvironment, StdioClientTransport } from "@modelcontextprotoc
 const bundle = fileURLToPath(new URL("../../../dist/recipes-mcp.mjs", import.meta.url));
 const httpBundle = fileURLToPath(new URL("../../../dist/recipes-mcp-http.mjs", import.meta.url));
 const root = fileURLToPath(new URL("../../..", import.meta.url));
+const json = async (file: string) => JSON.parse(await readFile(join(root, file), "utf8")) as { version: string };
 
 type PluginMcpManifest = {
   mcpServers: {
@@ -53,6 +54,7 @@ test("performs a real stdio handshake with the bundled MCP server", async () => 
   const client = new Client({ name: "recipes-bundle-test", version: "0.1.0" });
   try {
     await client.connect(transport);
+    assert.equal(client.getServerVersion()?.version, (await json("package.json")).version);
     assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name), [
       "list_recipes",
       "search_recipes",
@@ -85,6 +87,7 @@ test("performs a real HTTP handshake with the bundled MCP server", async () => {
   try {
     await ready;
     await client.connect(new StreamableHTTPClientTransport(endpoint));
+    assert.equal(client.getServerVersion()?.version, (await json("package.json")).version);
     assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name), ["list_recipes", "search_recipes", "get_recipe", "import_recipe", "delete_recipe"]);
   } finally {
     await client.close().catch(() => undefined);
