@@ -15,7 +15,7 @@
   "interface": {
     "displayName": "Recipes Dev",
     "shortDescription": "Cooking recipes",
-    "longDescription": "Search and retrieve cooking recipes from your own collection and external sources",
+    "longDescription": "Search and retrieve cooking recipes from your own collection and external sources.",
     "developerName": "Edgestream",
     "category": "Lifestyle",
     "capabilities": [
@@ -23,10 +23,10 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Import the recipe from https://raw.githubusercontent.com/edgestream/recipes-plugin/main/examples/spaghetti-carbonara.json",
       "List my recipes",
-      "Search my recipes for spaghetti",
-      "Show my spaghetti carbonara recipe"
+      "Search recipes for spaghetti",
+      "Show the details of the first recipe from those search results",
+      "Import that recipe into my collection"
     ],
     "brandColor": "#F97316"
   }

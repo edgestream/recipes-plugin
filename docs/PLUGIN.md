@@ -40,6 +40,10 @@ plugin root. All manifest paths are relative to that root and begin with `./`.
 
 ## Shared runtime and maintenance
 
+The starter prompts in `.codex-plugin/plugin.json` (`interface.defaultPrompt`)
+are the source for the README examples. Update both together. They use provider
+search results for imports so they also work with the hosted source policy.
+
 Both MCP configurations launch the committed `node ./dist/recipes-mcp.mjs`
 bundle without a `cwd` entry. Codex resolves the relative bundle argument from
 the installed plugin directory; do not set `cwd` to `.` or use an undocumented
@@ -70,3 +74,18 @@ npm run check
 npm test
 git diff --check
 ```
+
+## Release and marketplace registration
+
+Recipes is not yet registered in the marketplace. After release verification,
+publish the release tag and GitHub release from this repository with matching
+manifest versions and the intended release identity. Then propose the stable
+listing in a separate `edgestream/agent-marketplace` PR pinned to the published
+tag. Publishing the release alone does not register the plugin.
+
+Follow the [marketplace promotion guide](https://github.com/edgestream/agent-marketplace/blob/main/docs/PROMOTION.md)
+for tag/commit verification, listing review, and installed-host checks. Record
+actual ChatGPT compatibility before advertising support. Installation and channel
+instructions belong in the [marketplace guide](https://github.com/edgestream/agent-marketplace#installation).
+Marketplace registration is separate from public ChatGPT Directory approval;
+neither is established by the existing development OAuth connection.

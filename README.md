@@ -1,69 +1,75 @@
 # Recipes Plugin
 
-Keep a personal recipe collection and explore configured recipe sources through
-the command line or an MCP client.
+*Cooking recipes*
 
-## Start here
+Search and retrieve cooking recipes from your own collection and external sources.
 
-Choose one entry point:
+## Plugin
 
-- **ChatGPT:** connect the hosted Recipes development app with OAuth. Follow the
-  verified [ChatGPT guide](docs/CHATGPT.md). It is not a Directory listing.
-- **Local command line:** build this checkout, then use `npx recipes` as shown
-  below. Recipes are stored in the local data directory.
-- **MCP, packaging, or deployment:** use [MCP.md](docs/MCP.md) for the server
-  contract and [PLUGIN.md](docs/PLUGIN.md) for package contracts. These are
-  technical references, not installation guides.
-
-## What Recipes can do
-
-The MCP server can:
-
-- list your saved recipes, including the next page;
-- search configured recipe providers without importing results;
-- retrieve a complete recipe;
-- import a selected provider recipe into your personal collection; and
-- permanently delete a saved recipe.
-
-Use prompts such as:
-
-- “Show my saved recipes.”
-- “Search recipes for tomato pasta.”
-- “Show the details for that recipe.”
-- “Import that provider recipe into my collection.”
-- “Delete my saved recipe named …” (permanent).
-
-Hosted production imports use provider references by default; direct URL imports
-are not a normal production feature. MCP identifiers such as
-`recipes://personal` and `recipes://{provider}/{id}` are not browser URLs.
-
-## Local command line
-
-Build the checkout once:
+Install the plugin from the `Edgestream marketplace` with Codex CLI:
 
 ```bash
-npm install
-npm run build
+codex plugin marketplace add edgestream/agent-marketplace --ref development
+codex plugin add recipes-dev@edgestream-dev
+```
+
+See [marketplace installation guide](https://github.com/edgestream/agent-marketplace#installation)
+and [PLUGIN.md](docs/PLUGIN.md) for packaging and release details.
+
+## MCP
+
+Connect an MCP client to the development server using OAuth:
+
+```text
+https://recipes.dev.edgestream.cloud/mcp
+```
+
+Try the plugin's default prompts in order:
+
+- “List my recipes”
+- “Search recipes for spaghetti”
+- “Show the details of the first recipe from those search results”
+- “Import that recipe into my collection”
+
+See the [ChatGPT guide](docs/CHATGPT.md) for setup and account connection and
+the [MCP reference](docs/MCP.md) for capabilities and configuration.
+
+## CLI
+
+The CLI requires *Node.js 24* or later. From the repository root of a local
+checkout, install the dependencies:
+
+```bash
+npm ci
 ```
 
 Import, list, search, show, and delete a recipe:
 
 ```bash
+# Import the example recipe.
 npx recipes import https://raw.githubusercontent.com/edgestream/recipes-plugin/main/examples/spaghetti-carbonara.json
+
+# List saved recipes.
 npx recipes list
+
+# Search for recipes.
 npx recipes search Spaghetti
+
+# Show a complete recipe.
 npx recipes show spaghetti-carbonara
+
+# Permanently delete the saved recipe.
 npx recipes delete spaghetti-carbonara
 ```
 
-Set `RECIPES_DATA_DIRECTORY` to keep the local collection outside the current
-directory. See [CLI.md](docs/CLI.md) for commands, configuration, and URI rules.
+See [CLI.md](docs/CLI.md) for commands, configuration, and URI rules.
 
 ## Development
 
 ```bash
+npm run build
 npm run check
 npm test
 ```
 
-Provider contribution guidance is in [PROVIDER.md](docs/PROVIDER.md).
+See [AGENTS.md](AGENTS.md) for contribution guidance and project conventions.
