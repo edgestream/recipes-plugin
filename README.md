@@ -1,6 +1,33 @@
 # Recipes Plugin
 Search and retrieve cooking recipes from your own collection and external sources
 
+## MCP server
+
+Recipes includes an MCP server for a personal recipe collection and configured
+external providers. It can list saved recipes with pagination, search providers,
+retrieve complete recipe documents, import a selected recipe into a writable
+personal collection, and permanently delete a saved recipe.
+
+Search uses non-empty terms and returns provider-qualified `recipes://provider/id`
+references; it does not import results automatically. `recipes://personal` lists
+the personal collection, while `recipes://{provider}/{id}` identifies a recipe for
+an MCP client—neither is a browser URL. Import creates a personal recipe and
+deletion is destructive. Available tools depend on the configured catalog's
+capabilities, so read-only providers cannot write or delete.
+
+Typical prompts include:
+
+- “Show my saved recipes.”
+- “Show the next page of my saved recipes.”
+- “Search recipes for tomato pasta.”
+- “Show the details for the Chefkoch result.”
+- “Import that provider recipe into my collection.”
+- “Delete my saved recipe named …” (permanent).
+
+Hosted production imports use provider references by default; direct URL imports
+are not a normal production feature. See [MCP protocol details](docs/MCP.md),
+[packaging](docs/PLUGIN.md), and the verified [ChatGPT development connection](docs/CHATGPT.md).
+
 ## CLI
 
 Import the example recipe

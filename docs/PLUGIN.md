@@ -20,6 +20,11 @@ Keep `mcpServers` out of the portable `plugin.json`: Agent Plugins discovers the
 MCP configuration from the separate root `mcp.json`. The two `$schema` values
 must target the same specification version.
 
+For the verified user-facing ChatGPT development connection, including its
+remote OAuth MCP endpoint and the distinction from a Directory publication, see
+[CHATGPT.md](CHATGPT.md). The portable package files do not make the bundled
+stdio server a directly connectable ChatGPT server.
+
 ## Codex Plugins
 
 Codex discovers its plugin through `.codex-plugin/plugin.json`. This manifest
