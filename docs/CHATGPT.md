@@ -1,124 +1,106 @@
-# Recipes in ChatGPT
+# Recipes internal operation
 
-This guide describes the verified development connection to the hosted Recipes
-MCP service. It is not a directory listing or a published-plugin installation
-guide: no Directory publication has been completed.
+This guide covers the closed Edgestream reference service. It is for the
+workspace administrator and the two intended participants; it is not a public
+installation or Directory guide.
 
-## Choose the right surface
+## Current state
 
-ChatGPT and Codex are separate products. The root `plugin.json` and `mcp.json`
-describe a portable plugin package; `.codex-plugin/plugin.json` and `.mcp.json`
-are for Codex. Neither local package is a verified ChatGPT installation path.
-The bundled stdio server is for Codex and trusted local use, not a server that
-ChatGPT connects to directly.
-
-Use the hosted connection in ChatGPT on the web. It is a Developer Mode MCP app,
-not a published Directory app. ChatGPT connects to its remote Streamable HTTP
-endpoint:
+The hosted reference service and its OAuth connection have been verified at:
 
 ```text
 https://recipes.dev.edgestream.cloud/mcp
 ```
 
-The current OpenAI workflow and availability requirements are documented in
-[Developer mode and MCP apps in ChatGPT](https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt).
-Availability and labels depend on the ChatGPT plan, workspace policy, role, and
-rollout. Do not substitute an older Plugins or desktop menu path for the controls
-shown by the current ChatGPT web UI.
+Each authorized OAuth subject receives a separate hosted collection. The
+reference deployment does **not** yet establish workspace preinstallation,
+assignment, or an admission policy for the closed group. Those changes and their
+verification belong to [#34](https://github.com/edgestream/recipes-plugin/issues/34).
+Do not infer access approval from the endpoint being reachable or from a
+marketplace package being installable.
 
-## Connect the development app
+## Responsibilities
 
-1. Obtain permission to use Developer Mode in the intended ChatGPT workspace.
-   Workspace admins enable it; Enterprise and Edu workspaces can grant access by
-   role. The current UI can create an app from **Settings → Apps → Create** or
-   **Workspace settings → Apps → Create**.
-2. Create the custom MCP app with the endpoint above. Select OAuth when ChatGPT
-   asks for authentication, then select **Scan Tools** and complete the browser
-   authorization before creating the draft connection.
-3. In the authorization browser flow, sign in to the intended Edgestream account
-   and grant the requested Recipes access. Return to ChatGPT and wait for tool
-   scanning to finish. A successful draft appears under the enabled apps with a
-   `Dev` label.
-4. Start a new ChatGPT conversation, select the development app for the message,
-   and ask it to list your saved recipes.
+The workspace administrator manages the app once #34 supplies the verified
+workspace provisioning path: app availability, assignment, action review, and
+tool refresh. Until then, do not claim that Recipes is preinstalled or that a
+workspace setting limits hosted access.
 
-The verified connection uses OAuth and the linked Edgestream identity selects the
-hosted personal collection. It is separate from a ChatGPT account and from any
-local `RECIPES_DATA_DIRECTORY` collection.
+Each participant links their own Edgestream account through OAuth. The linked
+account selects the hosted collection; it is independent of the ChatGPT account
+and of a local Codex or CLI collection. Participants do not need infrastructure
+credentials or deployment access.
 
-### Switch accounts deliberately
+The infrastructure operator selects the deployed image through GitOps and
+investigates service or authorization failures. Use the [OAuth integration
+contract](https://github.com/edgestream/infrastructure/blob/main/docs/RECIPES_OAUTH_INTEGRATION.md)
+for the deployed identity boundary and the [Argo CD runbook](https://github.com/edgestream/infrastructure/blob/main/k8s/argocd/README.md)
+for deployment inspection and rollback. Release preparation, publication, and
+marketplace promotion are separate stages in [RELEASE.md](RELEASE.md) and
+[PLUGIN.md](PLUGIN.md).
 
-An existing Edgestream browser session can legitimately complete OAuth without a
-password prompt. That is not evidence that the desired account was selected. To
-change accounts reliably, disconnect the development app if the UI offers that
-control, then use a separate browser profile or clear `edgestream.cloud` cookies
-before reconnecting. Sign in to the intended account, complete authorization,
-start a new ChatGPT conversation, and run `list_recipes` again. Verify the
-expected personal recipe count or a known personal recipe before doing imports or
-deletions. The two-account pilot found that choosing a shared-profile session was
-the cause of a misleading collection result.
+## Participant connection and check
 
-Disconnecting a ChatGPT connection revokes or removes access to the service; it
-does not itself delete hosted recipes. No backup or restore workflow has been
-qualified or documented for users.
+In a new ChatGPT conversation, select the internal Recipes app when it is
+available, complete OAuth, and choose the intended Edgestream account. Existing
+browser sessions can complete the flow without asking for a password.
 
-## Verify the connection
+Run a short check:
 
-The deployed MCP surface has these tools:
+1. Ask to list saved recipes and confirm the expected empty state, count, or a
+   known personal recipe.
+2. Optionally search for a recipe, retrieve the selected result, and import its
+   provider-qualified reference into the personal collection.
+3. If deletion is tested, use only a disposable personal recipe.
 
-- `list_recipes` browses the linked personal collection with pagination. Ask
-  “Show my saved recipes”, then “show the next page”.
-- `search_recipes` searches configured providers with non-empty terms and returns
-  provider-qualified results. It does not import a result. Ask “Search recipes
-  for tomato pasta”.
-- `get_recipe` retrieves the complete recipe by provider and provider-local ID.
-  Ask “Show the details for that recipe”.
-- `import_recipe` stores a chosen provider result in the personal collection.
-  In hosted production, supply its `recipes://provider/id` reference; direct URL
-  imports are not a normal production feature.
-- `delete_recipe` permanently removes a personal recipe. Ask explicitly, for
-  example, “Delete my saved recipe named …”, and confirm the destructive action.
+Hosted production imports use provider-qualified `recipes://` references. Direct
+URL imports are disabled except for the explicit non-production test gate.
 
-Compatible clients can also read `recipes://personal` and individual
-`recipes://{provider}/{id}` resources. They are MCP identifiers, not browser
-links. `list_recipes` is the preferred way to browse an unfiltered collection.
+### Change accounts
 
-For a safe first check, list the personal collection, search for a recipe, import
-the returned provider reference, list again, and retrieve the imported recipe.
-Use a disposable recipe if testing deletion. The tool names and resource surface
-were checked against the bundled MCP server; see [MCP.md](MCP.md) for protocol and
-pagination details.
+Do not treat the absence of a password prompt as account confirmation. To link a
+different account, use a separate browser profile or clear `edgestream.cloud`
+cookies before reconnecting. Complete OAuth for the intended account, start a
+new conversation, then list the collection before importing or deleting. The
+completed two-account pilot found that a shared browser session, not collection
+ownership, caused the earlier wrong-account result.
 
-## Storage and updates
+## Connection and data lifecycle
 
-Hosted recipes are stored in the account-scoped hosted collection. Local CLI and
-stdio use `RECIPES_DATA_DIRECTORY`; packaged local plugins use host-managed
-`${PLUGIN_DATA}`. Those local stores are independent of the hosted collection.
-Do not edit a plugin cache or infer a durable path from it.
+These actions are separate:
 
-This guide covers the development connection only. Publishing an app to a
-workspace directory is a separate administrator action and has not been
-performed for Recipes. If a future app is published, the workspace administrator
-must review and publish its scanned actions; ChatGPT does not automatically adopt
-later MCP tool changes. Reconnect or refresh the app only through the controls
-shown by ChatGPT, then begin a new conversation and repeat the verification.
+| Action | Effect | Does not do |
+| --- | --- | --- |
+| Disconnect the app in ChatGPT | Removes the client connection. | It is not evidence that the server-side OAuth grant was revoked or that recipes were deleted. |
+| Revoke the OAuth grant | Stops future authorization under that grant. Ask the identity/infrastructure owner to perform and verify it. | It does not delete recipes. |
+| Log out of the browser | Ends or changes the browser session used for the next OAuth flow. | It does not revoke a grant or delete recipes. |
+| Delete a recipe | Permanently removes that personal recipe. | It does not disconnect the app, revoke a grant, or delete the account collection. |
 
-## Troubleshooting
+Hosted collections are account-scoped. Local CLI and Codex stores use their own
+data directory or `${PLUGIN_DATA}` and are separate from hosted data. Backup and
+restore remain deferred; this guide makes no recovery guarantee. For the separate
+Codex package path, use the [marketplace installation guide](https://github.com/edgestream/agent-marketplace#installation).
 
-- **Developer Mode or Create is unavailable:** confirm the workspace plan, role,
-  policy, and administrator enablement. ChatGPT availability varies by account
-  and surface.
-- **Tool scan or connection fails:** recheck the exact HTTPS `/mcp` endpoint and
-  complete the OAuth browser flow. A local stdio command or `localhost` endpoint
-  is not this hosted connection path.
-- **The wrong recipes appear:** repeat the controlled account-switch procedure
-  above and verify the collection before making changes.
-- **A tool is missing or looks stale:** reconnect/refresh through the current
-  ChatGPT controls and use a new conversation. Published workspace apps can have
-  an administrator-reviewed tool snapshot.
-- **Recipes seem absent after unlinking:** reconnect the same Edgestream account
-  and list the collection. Unlinking does not delete hosted data; local and
-  hosted collections are different stores.
+## Diagnose a problem
 
-For package-contract details, see [PLUGIN.md](PLUGIN.md). For the local CLI and
-stdio workflow, see [CLI.md](CLI.md).
+- **Connection or authorization fails:** retry OAuth from a new chat. A `401`
+  indicates missing, expired, or invalid authorization; reconnect first. Escalate
+  repeated failures with the time and observed status to the infrastructure
+  operator.
+- **A `403` or unavailable operation:** the account may lack the required scope
+  or the workspace app may require an administrator review. Ask the workspace
+  administrator to check the app/action configuration; ask infrastructure to
+  investigate verified-token failures.
+- **The wrong collection appears:** follow the controlled account-switch steps,
+  then list the collection again before making changes.
+- **Tools are stale after an update:** start a new conversation. The workspace
+  administrator refreshes and reviews changed actions where the ChatGPT UI
+  requires it; the infrastructure operator confirms the GitOps image and
+  application health.
+- **A collection seems missing after disconnecting:** reconnect the same
+  Edgestream account and list it. Disconnection, browser logout, and grant
+  revocation do not delete recipe data.
+
+For MCP tools, paging, scopes, and error semantics, see [MCP.md](MCP.md). The
+current ChatGPT controls and availability are described by OpenAI's [Developer
+mode and MCP apps in ChatGPT](https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt).
