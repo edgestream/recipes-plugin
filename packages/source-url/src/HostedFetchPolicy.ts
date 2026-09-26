@@ -97,7 +97,12 @@ export class HostedFetchPolicy {
         method: init?.method ?? "GET",
         headers: Object.fromEntries(headers),
         signal: init?.signal ?? undefined,
-        lookup: (_host, _options, callback) => callback(null, address.address, address.family),
+        // Node 24 asks custom DNS resolvers for all addresses. In that mode the
+        // callback must receive an address array; returning the legacy scalar
+        // form makes Node attempt to parse an undefined address.
+        lookup: (_host, options, callback) => options.all
+          ? callback(null, [address])
+          : callback(null, address.address, address.family),
       }, (response) => {
         const decoded = decode(response);
         const responseHeaders = new Headers(response.headers as Record<string, string>);
