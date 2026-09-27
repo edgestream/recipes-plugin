@@ -72,12 +72,17 @@ entries. Maintainers choose the branch/version and complete the manual gates.
 3. Merge the preparation PR, rerun gates on the exact merged commit, then create
    the exact immutable tag and matching GitHub release. These are separate
    deliberate actions.
-4. Promote the published tag through a separate `edgestream/agent-marketplace`
-   PR. Stable entries use `recipes` and the immutable tag; development retains
-   `recipes-dev` at `main`. Publishing a GitHub release does not promote it.
-5. Verify fresh installation/update, displayed identity/version, MCP startup,
-   and an actual tool call. `recipes-dev` and `recipes` are separate identities;
-   do not assume settings migrate between them.
+4. When local marketplace distribution is wanted, promote the published tag
+   through a separate `edgestream/agent-marketplace` PR. Stable entries use
+   `recipes` and the immutable tag; development retains `recipes-dev` at
+   `main`. Publishing a GitHub release does not promote it.
+5. The marketplace owns fresh installation/update, displayed identity/version,
+   MCP startup, and actual-tool-call verification. `recipes-dev` and `recipes`
+   are separate identities; do not assume settings migrate between them.
+
+Marketplace promotion is independent from hosting a release image or assigning
+the internal workspace app. It must not block acceptance of the closed hosted
+reference deployment.
 
 For a patch, fix on `main` first where practical, then cherry-pick only needed
 commits into the maintenance line. Do not merge all of `main` or its development

@@ -6,25 +6,27 @@ installation or Directory guide.
 
 ## Current state
 
-The hosted reference service and its OAuth connection have been verified at:
+The hosted release service and its OAuth connection have been verified at:
 
 ```text
-https://recipes.dev.edgestream.cloud/mcp
+https://recipes.mcp.edgestream.cloud/mcp
 ```
 
 Each authorized OAuth subject receives a separate hosted collection. The
-reference deployment does **not** yet establish workspace preinstallation,
-assignment, or an admission policy for the closed group. Those changes and their
-verification belong to [#34](https://github.com/edgestream/recipes-plugin/issues/34).
-Do not infer access approval from the endpoint being reachable or from a
-marketplace package being installable.
+Recipes is installed in the internal Edgestream workspace for the two intended
+participants. Both completed OAuth and verified isolated collections. Workspace
+availability is an application-distribution setting; it is not server-side
+account admission.
+
+Keto/Hydra-backed account administration, per-user configuration, manually
+issued invitations, and admission denial checks are a future initiative. Do not
+claim that the current reference deployment implements those controls.
 
 ## Responsibilities
 
-The workspace administrator manages the app once #34 supplies the verified
-workspace provisioning path: app availability, assignment, action review, and
-tool refresh. Until then, do not claim that Recipes is preinstalled or that a
-workspace setting limits hosted access.
+The workspace administrator manages the installed app: participant availability,
+action review, and tool refresh. Review changed actions in the ChatGPT UI when
+it requests review, then ask participants to start a new conversation.
 
 Each participant links their own Edgestream account through OAuth. The linked
 account selects the hosted collection; it is independent of the ChatGPT account
@@ -32,12 +34,19 @@ and of a local Codex or CLI collection. Participants do not need infrastructure
 credentials or deployment access.
 
 The infrastructure operator selects the deployed image through GitOps and
-investigates service or authorization failures. Use the [OAuth integration
+investigates service or authorization failures. Use the [release deployment
+runbook](https://github.com/edgestream/infrastructure/blob/main/docs/RECIPES_MCP_RELEASE_DEPLOYMENT.md)
+for the release deployment, the [OAuth integration
 contract](https://github.com/edgestream/infrastructure/blob/main/docs/RECIPES_OAUTH_INTEGRATION.md)
-for the deployed identity boundary and the [Argo CD runbook](https://github.com/edgestream/infrastructure/blob/main/k8s/argocd/README.md)
-for deployment inspection and rollback. Release preparation, publication, and
-marketplace promotion are separate stages in [RELEASE.md](RELEASE.md) and
-[PLUGIN.md](PLUGIN.md).
+for the identity boundary, and the [Argo CD
+runbook](https://github.com/edgestream/infrastructure/blob/main/k8s/argocd/README.md)
+for deployment inspection and rollback.
+
+The [Edgestream marketplace](https://github.com/edgestream/agent-marketplace#installation)
+also distributes a separate local Codex plugin. That package runs stdio on the
+developer's machine; it does not use this endpoint, workspace assignment, or
+hosted OAuth. Its installation checks belong to the marketplace promotion work,
+not to internal service operation.
 
 ## Participant connection and check
 
@@ -87,10 +96,11 @@ Codex package path, use the [marketplace installation guide](https://github.com/
   indicates missing, expired, or invalid authorization; reconnect first. Escalate
   repeated failures with the time and observed status to the infrastructure
   operator.
-- **A `403` or unavailable operation:** the account may lack the required scope
-  or the workspace app may require an administrator review. Ask the workspace
+- **A `403` or unavailable operation:** the token may lack a required scope or
+  the workspace app may require an administrator review. Ask the workspace
   administrator to check the app/action configuration; ask infrastructure to
-  investigate verified-token failures.
+  investigate verified-token failures. Do not interpret this as the future
+  account-admission policy.
 - **The wrong collection appears:** follow the controlled account-switch steps,
   then list the collection again before making changes.
 - **Tools are stale after an update:** start a new conversation. The workspace

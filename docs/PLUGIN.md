@@ -21,9 +21,9 @@ MCP configuration from the separate root `mcp.json`. The two `$schema` values
 must target the same specification version.
 
 For the internal hosted reference operation, including its OAuth connection and
-the pending workspace provisioning boundary, see [CHATGPT.md](CHATGPT.md). The
-portable package files do not make the bundled stdio server a directly
-connectable ChatGPT server.
+workspace administration, see [CHATGPT.md](CHATGPT.md). The portable package
+files do not make the bundled stdio server a directly connectable ChatGPT
+server.
 
 ## Codex Plugins
 
@@ -81,15 +81,15 @@ git diff --check
 
 ## Release and marketplace registration
 
-Recipes is not yet registered in the marketplace. After release verification,
-publish the release tag and GitHub release from this repository with matching
-manifest versions and the intended release identity. Then propose the stable
-listing in a separate `edgestream/agent-marketplace` PR pinned to the published
-tag. Publishing the release alone does not register the plugin.
+The stable `recipes` listing is registered in the `Edgestream` marketplace and
+is pinned to release tag `0.1.1`. It installs the local stdio package; it neither
+configures the hosted MCP endpoint nor authorizes an Edgestream account. Keep
+that local distribution separate from internal workspace deployment and hosted
+OAuth operation.
 
 Follow the [marketplace promotion guide](https://github.com/edgestream/agent-marketplace/blob/main/docs/PROMOTION.md)
-for tag/commit verification, listing review, and installed-host checks. Record
-actual ChatGPT compatibility before advertising support. Installation and channel
-instructions belong in the [marketplace guide](https://github.com/edgestream/agent-marketplace#installation).
-Marketplace registration is separate from public ChatGPT Directory approval;
-neither is established by the existing development OAuth connection.
+for tag/commit verification, listing review, and installed-host checks. The
+marketplace owns those checks. Installation and channel instructions belong in
+the [marketplace guide](https://github.com/edgestream/agent-marketplace#installation).
+Marketplace registration is separate from public ChatGPT Directory approval and
+from the internal hosted service.

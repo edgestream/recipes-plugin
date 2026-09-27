@@ -6,25 +6,31 @@ Search and retrieve cooking recipes from your own collection and external source
 
 ## Plugin
 
-Install the plugin from the `Edgestream marketplace` with Codex CLI:
+Install the local plugin from the stable `Edgestream` marketplace with Codex
+CLI:
 
 ```bash
-codex plugin marketplace add edgestream/agent-marketplace --ref development
-codex plugin add recipes-dev@edgestream-dev
+codex plugin marketplace add edgestream/agent-marketplace --ref main
+codex plugin add recipes@edgestream
 ```
 
 See [marketplace installation guide](https://github.com/edgestream/agent-marketplace#installation)
-and [PLUGIN.md](docs/PLUGIN.md) for packaging details. Maintainers should follow
-the [release procedure](docs/RELEASE.md) for version preparation and the separate
-publication and marketplace gates.
+and [PLUGIN.md](docs/PLUGIN.md) for packaging details. This package runs a local
+stdio MCP server and stores its data in the installed plugin data directory. It
+does not connect to or authorize the hosted Edgestream service.
 
 ## MCP
 
-Connect an MCP client to the development server using OAuth:
+The internal Edgestream workspace uses the hosted release service through OAuth:
 
 ```text
-https://recipes.dev.edgestream.cloud/mcp
+https://recipes.mcp.edgestream.cloud/mcp
 ```
+
+It is provisioned for the intended internal participants. See the
+[internal operation guide](docs/CHATGPT.md) for connection, account switching,
+data lifecycle, and support. The development endpoint remains
+`https://recipes.dev.edgestream.cloud/mcp` for non-production verification.
 
 Try the plugin's default prompts in order:
 
