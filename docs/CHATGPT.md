@@ -12,8 +12,8 @@ The hosted release service and its OAuth connection have been verified at:
 https://recipes.mcp.edgestream.cloud/mcp
 ```
 
-Each authorized OAuth subject receives a separate hosted collection. The
-Recipes is installed in the internal Edgestream workspace for the two intended
+Each authorized OAuth subject receives a separate hosted collection. Recipes is
+installed in the internal Edgestream workspace for the two intended
 participants. Both completed OAuth and verified isolated collections. Workspace
 availability is an application-distribution setting; it is not server-side
 account admission.
