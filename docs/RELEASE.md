@@ -9,8 +9,12 @@ request conventions remain in [REPOSITORY.md](REPOSITORY.md) and
 
 | Purpose | Branch | Plugin identity / display name | Version example |
 | --- | --- | --- | --- |
-| Development | `main` | `recipes-dev` / `Recipes Dev` | `0.2.0` |
+| Development | `main` | `recipes-dev` / `Recipes Dev` local developer distribution | `0.2.0` |
 | Maintenance of the 0.1 line | `release/0.1` | `recipes` / `Recipes` | `0.1.0`, then `0.1.1` |
+
+The sole internal hosted release is `Recipes` at
+`https://recipes.mcp.edgestream.cloud/mcp`. `Recipes Dev` is never a hosted
+release channel.
 
 Use plain `major.minor.patch` versions with no `v` prefix, prerelease suffix, or
 build metadata. During 0.x development, create one maintenance branch per
@@ -75,7 +79,8 @@ entries. Maintainers choose the branch/version and complete the manual gates.
 4. When local marketplace distribution is wanted, promote the published tag
    through a separate `edgestream/agent-marketplace` PR. Stable entries use
    `recipes` and the immutable tag; development retains `recipes-dev` at
-   `main`. Publishing a GitHub release does not promote it.
+   `main` as a local developer distribution. Publishing a GitHub release does
+   not promote it or create a hosted development channel.
 5. The marketplace owns fresh installation/update, displayed identity/version,
    MCP startup, and actual-tool-call verification. `recipes-dev` and `recipes`
    are separate identities; do not assume settings migrate between them.
@@ -130,4 +135,5 @@ from main with `version` set to the published tag. The workflow still checks out
 and builds that tag's commit, never main's application source. Existing version
 tags are never overwritten; a retry after publication stops for inspection.
 Per-run architecture tags retain the tested images. Development commit-SHA images
-continue through the separate ARM64 `Container` workflow.
+are not published. The separate ARM64 `Container` workflow only builds and
+smoke-tests a temporary local image for pull requests and `main`.
