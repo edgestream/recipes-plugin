@@ -25,6 +25,12 @@ workspace administration, see [CHATGPT.md](CHATGPT.md). The portable package
 files do not make the bundled stdio server a directly connectable ChatGPT
 server.
 
+`recipes-dev` / `Recipes Dev` is the development marketplace and plugin identity
+for the current `main` state. It starts this bundled local stdio MCP server (or a
+developer's self-hosted or in-process MCP server); it is not an Edgestream-hosted
+development channel. The only internal hosted Recipes MCP is the release service
+at `https://recipes.mcp.edgestream.cloud/mcp`.
+
 ## Codex Plugins
 
 Codex discovers its plugin through `.codex-plugin/plugin.json`. This manifest
@@ -86,6 +92,10 @@ is pinned to release tag `0.1.1`. It installs the local stdio package; it neithe
 configures the hosted MCP endpoint nor authorizes an Edgestream account. Keep
 that local distribution separate from internal workspace deployment and hosted
 OAuth operation.
+
+The `recipes-dev` listing follows `main` as a separate local developer
+distribution. It retains its own plugin identity and does not create, select, or
+depend on a hosted development endpoint.
 
 Follow the [marketplace promotion guide](https://github.com/edgestream/agent-marketplace/blob/main/docs/PROMOTION.md)
 for tag/commit verification, listing review, and installed-host checks. The

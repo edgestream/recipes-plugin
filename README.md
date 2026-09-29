@@ -29,8 +29,9 @@ https://recipes.mcp.edgestream.cloud/mcp
 
 It is provisioned for the intended internal participants. See the
 [internal operation guide](docs/CHATGPT.md) for connection, account switching,
-data lifecycle, and support. The development endpoint remains
-`https://recipes.dev.edgestream.cloud/mcp` for non-production verification.
+data lifecycle, and support. `Recipes Dev` is the local developer distribution
+from `main`; it starts a local, self-hosted, or in-process MCP server and is not
+a separately hosted Edgestream endpoint.
 
 Try the plugin's default prompts in order:
 

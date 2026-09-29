@@ -61,17 +61,21 @@ the unprivileged `node` user and exposes `/data` as its only writable location.
 Production must mount `/data`, set the container root filesystem read-only, and
 keep credentials in its runtime secret mechanism rather than the image.
 
-Development images use the `Container` workflow on ARM64. Stable release images
-use the separate `Release container` workflow for native AMD64 and ARM64 builds
-and matching version tags; see [RELEASE.md](RELEASE.md#release-container-images).
-The development workflow runs on ARM64. Before it can publish, it runs the
-repository build, type check, and tests, then builds the ARM64 image and runs it
-with a disposable volume and read-only root filesystem. That smoke check verifies
-the non-root image configuration, writable mounted data, read-only application
-bundle, `/health`, a Streamable HTTP MCP initialization and tool-discovery
-handshake, and clean SIGTERM shutdown. Published images have an immutable
-registry digest, a source-revision OCI label, a commit-SHA tag for lookup, and
-BuildKit provenance. Deployments must use the digest, not the tag.
+The `Container` workflow is a local ARM64 verification job for pull requests and
+`main`. It runs the repository build, type check, and tests, then builds a
+temporary local image and runs it with a disposable volume and read-only root
+filesystem. That smoke check verifies the non-root image configuration, writable
+mounted data, read-only application bundle, `/health`, a Streamable HTTP MCP
+initialization and tool-discovery handshake, and clean SIGTERM shutdown. It does
+not log in to a registry or publish an image.
+
+The separate `Release container` workflow is the only image-publication path. It
+builds native AMD64 and ARM64 images for a published stable release and publishes
+the versioned multi-architecture `ghcr.io/edgestream/recipes-mcp:<version>`
+release image. The only Edgestream-hosted Recipes MCP is that release service at
+`https://recipes.mcp.edgestream.cloud/mcp`; see
+[RELEASE.md](RELEASE.md#release-container-images). Deployments must use that
+release image's immutable digest, not its version tag.
 
 ## Hosted OAuth and personal ownership
 

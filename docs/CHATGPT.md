@@ -12,6 +12,10 @@ The hosted release service and its OAuth connection have been verified at:
 https://recipes.mcp.edgestream.cloud/mcp
 ```
 
+This is the only Edgestream-hosted Recipes MCP. `Recipes Dev` remains the local
+developer plugin and marketplace identity for `main`; it starts a local,
+self-hosted, or in-process MCP server and is not a hosted development service.
+
 Each authorized OAuth subject receives a separate hosted collection. Recipes is
 installed in the internal Edgestream workspace for the two intended
 participants. Both completed OAuth and verified isolated collections. Workspace
